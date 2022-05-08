@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 FROM jupyterhub/jupyterhub as builder
 
 RUN pip install --upgrade pip
@@ -11,7 +12,7 @@ RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-
 RUN /root/.poetry/bin/poetry config virtualenvs.create false
 
 WORKDIR /opt/jupyterhub-nomad-spawner
-RUN /root/.poetry/bin/poetry install --no-dev -n -vv
+RUN --mount=type=cache,target=/root/.cache/pypoetry --mount=type=cache,target=/root/.cache/pip /root/.poetry/bin/poetry install --no-dev -n -vv
 COPY jupyterhub_nomad_spawner /opt/jupyterhub-nomad-spawner/jupyterhub_nomad_spawner
 RUN /root/.poetry/bin/poetry build -f wheel
 
@@ -20,7 +21,10 @@ RUN /root/.poetry/bin/poetry build -f wheel
 #COPY jupyterhub_config.py .
 
 FROM jupyterhub/jupyterhub AS jupyterhub
+RUN --mount=type=cache,target=/root/.cache/pip python3 -m pip install --upgrade pip
+RUN --mount=type=cache,target=/root/.cache/pip python3 -m pip -v install oauthenticator
 
-COPY --from=builder /opt/jupyterhub-nomad-spawner/jupyterhub_nomad_spawner-0.1.0-py3-none-any.whl /opt/jupyterhub-nomad-spawner/
+COPY --from=builder /opt/jupyterhub-nomad-spawner/dist/jupyterhub_nomad_spawner-0.1.0-py3-none-any.whl /opt/extra_deps/jupyterhub_nomad_spawner-0.1.0-py3-none-any.whl
 
-RUN pip install /opt/jupyterhub-nomad-spawner/jupyterhub_nomad_spawner-0.1.0-py3-none-any.whl
+
+RUN --mount=type=cache,target=/root/.cache/pip python3 -m pip -v install /opt/extra_deps/jupyterhub_nomad_spawner-0.1.0-py3-none-any.whl

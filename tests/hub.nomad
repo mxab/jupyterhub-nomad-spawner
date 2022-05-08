@@ -18,7 +18,7 @@ job "hub" {
             driver = "docker"
 
             config {
-                image = "jupyterhub/jupyterhub:2"
+                image = "jupyterhub/jupyterhub"
 
                 args = [
                         "jupyterhub",

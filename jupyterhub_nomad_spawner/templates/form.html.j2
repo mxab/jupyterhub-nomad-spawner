@@ -1,0 +1,89 @@
+<div class="form-group">
+    <label for="image">Image</label>
+    <input class="form-control" id="image" name="image" required list="common_images">
+</div>
+
+<datalist id="common_images">
+    {% for item in common_images %}
+    <option value="{{ item }}">{{ item }}</option>
+    {% endfor %}
+</datalist>
+
+<div class="form-group">
+    <label for="datacenters">
+        Datacenters
+    </label>
+    <select class="form-control" id="datacenters" name="datacenters" multiple="true" required>
+        {% for item in datacenters %}
+        <option value="{{ item }}">{{ item }}</option>
+        {% endfor %}
+    </select>
+</div>
+<div class="form-group">
+    <label for="memory">Memory</label>
+    <input class="form-control" type="number" id="memory" min="8" name="memory" value="1024" {% if memory_limit %}
+        max="{{ memory_limit }}" {% endif %}>
+</div>
+
+<div class="radio">
+    <label>
+        <input type="radio" name="volume_type" id="volume_type_none" value="" checked>
+        None
+    </label>
+</div>
+<div class="radio">
+    <label>
+        <input type="radio" name="volume_type" id="volume_type_csi" value="csi">
+        CSI Volume
+    </label>
+</div>
+<div class="radio">
+    <label>
+        <input type="radio" name="volume_type" id="volume_type_host" value="host">
+        Host Volume
+    </label>
+</div>
+
+<div class="form-group host-volume">
+    <label for="volume_source">Volume Source</label>
+    <input class="form-control" id="volume_source" name="volume_source" value="jupyter">
+</div>
+
+<div class="form-group csi-volume">
+    <label for="volume_csi_plugin_id">Volume CSI Plugin ID</label>
+    <select class="form-control" id="volume_csi_plugin_id" name="volume_csi_plugin_id">
+        {% for item in csi_plugin_ids %}
+        <option value="{{ item }}">{{ item }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+
+<div class="form-group volume-destination">
+    <label for="volume_destination">Volume Destination</label>
+    <input class="form-control" id="volume_destination" name="volume_destination" value="/home/jovyan/work">
+</div>
+
+
+<script>
++(function () {
+	jQuery(function($){
+        function handleType(type){
+            $(".host-volume").toggle(type == "host")
+            $(".csi-volume").toggle(type == "csi")
+            $(".volume-destination").toggle(!!type)
+
+            $(".csi-volume :input").prop("disable",type == "host")
+            $(".host-volume :input").prop("disable", type == "host")
+            $(".volume-destination :input").prop("disable", !type)
+        }
+        $("input[name=volume_type]").on("change", function(){
+            var type = $(this).val();
+            handleType(type)
+        });
+
+        var type = $("input[name=volume_type]").val();
+        handleType(type);
+    });
+}());
+</script>

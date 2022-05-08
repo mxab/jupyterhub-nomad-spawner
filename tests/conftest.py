@@ -7,25 +7,25 @@ import subprocess
 import time
 from textwrap import indent
 from unittest import mock
-from aiohttp import ClientSession
-import netifaces
+
 import jupyterhub
-import nomad
+import netifaces
 import pytest
+import pytest_asyncio
+import requests
+from aiohttp import ClientSession
+from consul.aio import Consul
 from jupyterhub import version_info as jh_version_info
 from jupyterhub.tests.conftest import app as jupyterhub_app  # noqa: F401
 from jupyterhub.tests.conftest import event_loop  # noqa: F401
 from jupyterhub.tests.conftest import io_loop  # noqa: F401
 from jupyterhub.tests.conftest import ssl_tmpdir  # noqa: F401
 from jupyterhub.tests.mocking import MockHub
+from jupyterhub.traitlets import URLPrefix
 from jupyterhub_nomad_spawner.spawner import NomadSpawner
-from consul.aio import Consul
-import pytest_asyncio
-import requests
 
 # import base jupyterhub fixtures
 
-from jupyterhub.traitlets import URLPrefix
 
 
 @pytest.fixture(scope="session")
@@ -66,12 +66,8 @@ def consul_process(tmp_path_factory):
     consul_proc.terminate()
 
 
-def nomad_client(nomad_process: subprocess.Popen[bytes]) -> nomad.Nomad:
-    n = nomad.Nomad(host="127.0.0.1", timeout=5)
-
-    leader = n.status.leader.get_leader()
-    print(leader)
-    return n
+def nomad_client(nomad_process):
+    pass
 
 
 import asyncio
@@ -85,11 +81,9 @@ import tarfile
 from functools import partial
 
 import pytest
-
 from jupyterhub.app import JupyterHub
 from jupyterhub.objects import Hub
 from traitlets.config import Config
-
 
 here = os.path.abspath(os.path.dirname(__file__))
 

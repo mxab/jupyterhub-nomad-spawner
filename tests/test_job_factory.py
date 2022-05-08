@@ -1,9 +1,9 @@
-from jupyterhub_nomad_spawner.job_factory import create_job
+from jupyterhub_nomad_spawner.job_factory import JobData, create_job
 
 
 def test_create_job():
 
-    job = create_job("myname", {"foo": "bar"})
+    job = create_job(JobData(username="myname", env={"foo": "bar"}))
 
     assert job == """
  job "jupyter-notebook-myname" {

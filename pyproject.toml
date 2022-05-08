@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jupyterhub-nomad-spawner"
-version = "0.1.0"
+version = "0.0.1"
 description = ""
 authors = ["Max Fröhlich <maxbruchmann@gmail.com>"]
 
@@ -13,6 +13,9 @@ aiohttp = "^3.8.1"
 pydantic = "^1.9.0"
 python-consul2 = "^0.1.5"
 tenacity = "^8.0.1"
+httpx = "^0.23.0"
+attrs = "^21.4.0"
+Jinja2 = "^3.1.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1"
@@ -21,6 +24,10 @@ flake8 = "^4.0.1"
 netifaces = "^0.11.0"
 pytest-asyncio = "^0.18.3"
 requests = "^2.27.1"
+datamodel-code-generator = "^0.13.0"
+poethepoet = "^0.13.1"
+pytest-httpx = "^0.21.0"
+mypy = "^0.961"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -30,3 +37,13 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.plugins."jupyterhub.spawners"]
 "nomad-spawner" = "jupyterhub_nomad_spawner.spawner:NomadSpawner"
 
+[tool.poe.tasks]
+gen-nomad-model = "datamodel-codegen --url https://raw.githubusercontent.com/hashicorp/nomad-openapi/main/v1/openapi.yaml --output jupyterhub_nomad_spawner/nomad_service/nomad_model.py"
+format = "black ."
+mypy = "mypy ."
+
+
+[tool.mypy]
+exclude = [
+    "^jupyterhub_nomad_spawner/nomad/nomad_model\\.py$",
+]
