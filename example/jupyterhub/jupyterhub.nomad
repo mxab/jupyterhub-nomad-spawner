@@ -28,7 +28,7 @@ job "jupyterhub" {
                         "/local/jupyterhub_config.py",
                     ]
                 ports = ["hub", "api"]
-                #network_mode = "host"
+
             }
             template {
                 destination = "/local/nomad.env"
@@ -62,6 +62,9 @@ c.JupyterHub.allow_named_servers = True
 c.JupyterHub.named_server_limit_per_user = 5
 
 c.JupyterHub.authenticator_class = DummyAuthenticator
+
+c.NomadSpawner.datacenters = ["dc1", "dc2", "dc3"]
+c.JupyterHub.mem_limit = "2G"
 
                 EOF
 

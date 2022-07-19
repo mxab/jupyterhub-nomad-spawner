@@ -23,7 +23,7 @@ class JobData(BaseModel):
     username: str
     env: Dict = {}
     args: List = []
-    datacenters: List[str] = ["dc1"]
+    datacenters: List[str] = []
     region: str = "global"
 
     service_name: str = "${JOB}-notebook"

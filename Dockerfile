@@ -16,15 +16,10 @@ RUN --mount=type=cache,target=/root/.cache/pypoetry --mount=type=cache,target=/r
 COPY jupyterhub_nomad_spawner /opt/jupyterhub-nomad-spawner/jupyterhub_nomad_spawner
 RUN /root/.poetry/bin/poetry build -f wheel
 
-#RUN cd /opt/jupyterhub-nomad-spawner && /root/.poetry/bin/poetry install --no-dev -n -vvv
 
-#COPY jupyterhub_config.py .
 
 FROM jupyterhub/jupyterhub AS jupyterhub
 RUN --mount=type=cache,target=/root/.cache/pip python3 -m pip install --upgrade pip
 RUN --mount=type=cache,target=/root/.cache/pip python3 -m pip -v install oauthenticator
 
-COPY --from=builder /opt/jupyterhub-nomad-spawner/dist/jupyterhub_nomad_spawner-0.1.0-py3-none-any.whl /opt/extra_deps/jupyterhub_nomad_spawner-0.1.0-py3-none-any.whl
-
-
-RUN --mount=type=cache,target=/root/.cache/pip python3 -m pip -v install /opt/extra_deps/jupyterhub_nomad_spawner-0.1.0-py3-none-any.whl
+RUN --mount=type=bind,target=/opt/jupyterhub-nomad-spawner/dist/,source=/opt/jupyterhub-nomad-spawner/dist/,from=builder --mount=type=cache,target=/root/.cache/pip python3 -m pip -v install /opt/jupyterhub-nomad-spawner/dist/*.whl
