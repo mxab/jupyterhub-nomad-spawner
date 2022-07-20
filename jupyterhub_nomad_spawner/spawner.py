@@ -362,6 +362,7 @@ class NomadSpawner(Spawner):
     @retry(wait=wait_fixed(3), stop=stop_after_attempt(5))
     async def service(self, consul_service: AsyncConsul):
 
+        self.log.info("Getting service %s from consul", self.service_name)
         (index, nodes) = await consul_service.health.service(self.service_name)
 
         address = nodes[0]["Service"]["Address"]
