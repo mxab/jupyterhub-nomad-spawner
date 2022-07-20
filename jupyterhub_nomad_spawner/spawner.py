@@ -452,9 +452,11 @@ class NomadSpawner(Spawner):
         options["datacenters"] = formdata["datacenters"]
         options["memory"] = int(formdata["memory"][0])
         options["volume_type"] = formdata["volume_type"][0]
-        options["volume_source"] = formdata["volume_source"][0]
-        options["volume_destination"] = formdata["volume_destination"][0]
-        options["volume_csi_plugin_id"] = formdata["volume_csi_plugin_id"][0]
+        options["volume_source"] = formdata.get("volume_source", [None])[0]
+        options["volume_destination"] = formdata.get("volume_destination", [None])[0]
+        options["volume_csi_plugin_id"] = formdata.get("volume_csi_plugin_id", [None])[
+            0
+        ]
 
         if self.memory_limit_in_mb and self.memory_limit_in_mb <= options["memory"]:
             err = f"Only {self.memory_limit_in_mb} allowed"
