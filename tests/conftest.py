@@ -12,8 +12,6 @@ import jupyterhub
 import netifaces
 import pytest
 import pytest_asyncio
-import requests
-from aiohttp import ClientSession
 from consul.aio import Consul
 from jupyterhub import version_info as jh_version_info
 from jupyterhub.tests.conftest import app as jupyterhub_app  # noqa: F401
@@ -25,7 +23,6 @@ from jupyterhub.traitlets import URLPrefix
 from jupyterhub_nomad_spawner.spawner import NomadSpawner
 
 # import base jupyterhub fixtures
-
 
 
 @pytest.fixture(scope="session")
@@ -151,7 +148,6 @@ def config():
         "JUPYTERHUB_CLIENT_ID": "ignored",
     }
     return cfg
-
 
 
 @pytest.fixture

@@ -2,22 +2,28 @@ import asyncio
 import hashlib
 import os
 import ssl
-from importlib.resources import path
-from pathlib import Path
+import typing as t
 from typing import Optional, Tuple, Union
 
-from aiohttp import ClientSession
-from consul.aio import Consul as AsyncConsul
 from httpx import AsyncClient
 from jupyterhub.spawner import Spawner
-from pydantic import AnyHttpUrl, BaseModel, parse_obj_as
+from pydantic import BaseModel, parse_obj_as
 from tenacity import retry, stop_after_attempt, wait_fixed
-from traitlets import Bool, Unicode, default, List, Integer
-from yarl import URL
-import typing as t
+from traitlets import Bool, Integer, List, Unicode, default
+
+
+from jupyterhub_nomad_spawner.consul.consul_service import (
+    ConsulService,
+    ConsulServiceConfig,
+    ConsulTLSConfig,
+)
 from jupyterhub_nomad_spawner.job_factory import JobData, JobVolumeData, create_job
 from jupyterhub_nomad_spawner.job_options_factory import create_form
-from jupyterhub_nomad_spawner.nomad.nomad_service import NomadService
+from jupyterhub_nomad_spawner.nomad.nomad_service import (
+    NomadService,
+    NomadServiceConfig,
+    NomadTLSConfig,
+)
 
 
 class CreateJobResponse(BaseModel):
@@ -28,36 +34,6 @@ class CreateJobResponse(BaseModel):
     KnownLeader: bool
     LastContact: int
     Warnings: str
-
-
-class NomadTLSConfig(BaseModel):
-    ca_cert: Optional[str]
-    ca_path: Optional[str]
-    client_cert: Path
-    client_key: Path
-    skip_verify: bool = False
-    tls_server_name: Optional[str]
-
-
-class NomadServiceConfig(BaseModel):
-    nomad_addr: AnyHttpUrl = parse_obj_as(AnyHttpUrl, "http://localhost:4646")
-    nomad_token: Optional[str]
-    tls_config: Optional[NomadTLSConfig] = None
-
-
-class ConsulTLSConfig(BaseModel):
-    ca_cert: Optional[str]
-    ca_path: Optional[str]
-    client_cert: Path
-    client_key: Path
-    skip_verify: bool = False
-    tls_server_name: Optional[str]
-
-
-class ConsulServiceConfig(BaseModel):
-    consul_http_addr: AnyHttpUrl = parse_obj_as(AnyHttpUrl, "http://localhost:8500")
-    consul_http_token: Optional[str]
-    tls_config: Optional[NomadTLSConfig] = None
 
 
 class NomadSpawner(Spawner):
@@ -268,16 +244,15 @@ class NomadSpawner(Spawner):
     def _default_csi_plugin_ids(self) -> t.List[str]:
         return []
 
-    nomad_service: NomadService
-
     async def start(self):
 
         nomad_service_config = build_nomad_config_from_options(self)
         nomad_httpx_client = build_nomad_httpx_client(nomad_service_config)
-
         nomad_service = NomadService(client=nomad_httpx_client, log=self.log)
 
-        consul_service = build_consul_client(build_consul_config_from_options(self))
+        consul_service_config = build_consul_config_from_options(self)
+        consul_httpx_client = build_consul_httpx_client(consul_service_config)
+        consul_service = ConsulService(client=consul_httpx_client, log=self.log)
 
         try:
 
@@ -342,7 +317,8 @@ class NomadSpawner(Spawner):
         finally:
             if nomad_httpx_client is not None:
                 await nomad_httpx_client.aclose()
-
+            if consul_httpx_client is not None:
+                await consul_httpx_client.aclose()
         return service_data
 
     async def _ensure_running(self, nomad_service: NomadService):
@@ -360,10 +336,10 @@ class NomadSpawner(Spawner):
                 await asyncio.sleep(5)
 
     @retry(wait=wait_fixed(3), stop=stop_after_attempt(5))
-    async def service(self, consul_service: AsyncConsul):
+    async def service(self, consul_service: ConsulService):
 
         self.log.info("Getting service %s from consul", self.service_name)
-        (index, nodes) = await consul_service.health.service(self.service_name)
+        nodes = await consul_service.health_service(self.service_name)
 
         address = nodes[0]["Service"]["Address"]
         port = nodes[0]["Service"]["Port"]
@@ -396,12 +372,19 @@ class NomadSpawner(Spawner):
                 await nomad_httpx_client.aclose()
 
     async def stop(self):
-        async with ClientSession() as session:
-            async with session.delete(
-                f"{self.settings.nomad_addr}/v1/job/{self.job_id}"
-            ) as response:
-                response.raise_for_status()
-                self.clear_state()
+
+        nomad_service_config = build_nomad_config_from_options(self)
+        nomad_httpx_client = build_nomad_httpx_client(nomad_service_config)
+        nomad_service = NomadService(client=nomad_httpx_client, log=self.log)
+
+        try:
+            await nomad_service.stop_job(self.job_id)
+            self.clear_state()
+        except Exception as e:
+            self.log.exception("Failed to stop")
+        finally:
+            if nomad_httpx_client is not None:
+                await nomad_httpx_client.aclose()
 
     def get_state(self):
         """get the current state"""
@@ -520,7 +503,7 @@ def build_nomad_httpx_client(config: NomadServiceConfig) -> AsyncClient:
         )
 
         if not config.tls_config.skip_verify and config.tls_config.ca_cert:
-            ca_cert = config.tls_config.ca_cert
+            ca_cert = config.tls_config.ca_cert.resolve()
             context = ssl.create_default_context()
             context.load_verify_locations(cafile=ca_cert)
             verify = context
@@ -535,7 +518,8 @@ def build_nomad_httpx_client(config: NomadServiceConfig) -> AsyncClient:
     return client
 
 
-def build_consul_client(config: ConsulServiceConfig) -> AsyncConsul:
+def build_consul_httpx_client(config: ConsulServiceConfig) -> AsyncClient:
+
     verify: Union[bool, ssl.SSLContext] = True
     cert: Optional[Tuple[str, str]] = None
     if config.tls_config:
@@ -545,22 +529,18 @@ def build_consul_client(config: ConsulServiceConfig) -> AsyncConsul:
         )
 
         if not config.tls_config.skip_verify and config.tls_config.ca_cert:
-            ca_cert = config.tls_config.ca_cert
+            ca_cert = config.tls_config.ca_cert.resolve()
             context = ssl.create_default_context()
             context.load_verify_locations(cafile=ca_cert)
             verify = context
         else:
             verify = False
-
-    host = config.consul_http_addr.host
-    port = config.consul_http_addr.port
-    scheme = config.consul_http_addr.scheme
-    client = AsyncConsul(
-        host=host,
-        port=port,
-        scheme=scheme,
+    client = AsyncClient(
+        base_url=config.consul_http_addr,
         verify=verify,
         cert=cert,
-        token=config.consul_http_token,
+        headers={"X-Consul-Token": config.consul_http_token}
+        if config.consul_http_token
+        else None,
     )
     return client

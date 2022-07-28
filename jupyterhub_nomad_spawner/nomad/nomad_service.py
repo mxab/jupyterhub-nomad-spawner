@@ -14,8 +14,8 @@ from pydantic import AnyHttpUrl, BaseModel, parse_obj_as
 
 
 class NomadTLSConfig(BaseModel):
-    ca_cert: Optional[str]
-    ca_path: Optional[str]
+    ca_cert: Optional[Path]
+    ca_path: Optional[Path]
     client_cert: Path
     client_key: Path
     skip_verify: bool = False
@@ -112,3 +112,8 @@ class NomadService:
 
         job_detail = response.json()
         return job_detail.get("Status", "")
+
+    async def delete_job(self, job_id: str):
+        response = await self.client.delete(f"/v1/job/{job_id}")
+        if response.is_error:
+            raise Exception(f"Error deleting job: {response.text}")
