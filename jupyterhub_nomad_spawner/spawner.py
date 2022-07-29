@@ -259,7 +259,7 @@ class NomadSpawner(Spawner):
             notebook_id: str = hashlib.sha1(
                 f"{self.user.name}:{self.name}".encode("utf-8")
             ).hexdigest()[:10]
-
+            self.notebook_id = notebook_id
             self.log.info("server name: %s", self.name)
             env = self.get_env()
             args = self.get_args()
@@ -267,28 +267,9 @@ class NomadSpawner(Spawner):
             volume_data: Optional[JobVolumeData] = None
 
             if self.user_options["volume_type"]:
-                self.log.info(
-                    "Configuring volume of type: %s", self.user_options["volume_type"]
+                volume_data = await self.create_job_volume_data(
+                    nomad_service, notebook_id
                 )
-
-                volume_data: JobVolumeData
-                if self.user_options["volume_type"] == "csi":
-                    volume_id = f"notebook-{notebook_id}"
-                    await nomad_service.create_volume(
-                        id=volume_id,
-                        plugin_id=self.user_options["volume_csi_plugin_id"],
-                    )
-                    volume_data = JobVolumeData(
-                        type="csi",
-                        destination=self.user_options["volume_destination"],
-                        source=volume_id,
-                    )
-                elif self.user_options["volume_type"] == "host":
-                    volume_data = JobVolumeData(
-                        type="host",
-                        destination=self.user_options["volume_destination"],
-                        source=self.user_options["volume_source"],
-                    )
 
             job_hcl = create_job(
                 JobData(
@@ -305,7 +286,6 @@ class NomadSpawner(Spawner):
             job_id, job_name = await nomad_service.schedule_job(job_hcl)
             self.job_id = job_id
             self.job_name = job_name
-            self.notebook_id = notebook_id
             await self._ensure_running(nomad_service=nomad_service)
 
             self.service_name = f"{job_id}-notebook"
@@ -320,6 +300,31 @@ class NomadSpawner(Spawner):
             if consul_httpx_client is not None:
                 await consul_httpx_client.aclose()
         return service_data
+
+    async def create_job_volume_data(self, nomad_service, notebook_id):
+        self.log.info(
+            "Configuring volume of type: %s", self.user_options["volume_type"]
+        )
+
+        if self.user_options["volume_type"] == "csi":
+            volume_id = f"notebook-{notebook_id}"
+            await nomad_service.create_volume(
+                id=volume_id,
+                plugin_id=self.user_options["volume_csi_plugin_id"],
+            )
+            volume_data = JobVolumeData(
+                type="csi",
+                destination=self.user_options["volume_destination"],
+                source=volume_id,
+            )
+        elif self.user_options["volume_type"] == "host":
+            volume_data = JobVolumeData(
+                type="host",
+                destination=self.user_options["volume_destination"],
+                source=self.user_options["volume_source"],
+            )
+
+        return volume_data
 
     async def _ensure_running(self, nomad_service: NomadService):
         while True:
