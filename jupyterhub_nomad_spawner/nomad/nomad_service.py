@@ -51,7 +51,9 @@ class NomadService:
             json=request.dict(exclude_none=True, exclude_unset=True),
         )
         if result.is_error:
-            raise Exception(f"Error registering volume: {result.text}")
+            raise Exception(
+                f"Error registering volume, status code : {result.status_code}, content: {result.text}"
+            )
 
     async def delete_volume(self, id: str):
 

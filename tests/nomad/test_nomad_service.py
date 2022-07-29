@@ -5,7 +5,6 @@ from typing import AsyncGenerator
 import pytest
 from jupyterhub_nomad_spawner.nomad.nomad_model import CSIVolume, CSIVolumeCreateRequest
 from jupyterhub_nomad_spawner.nomad.nomad_service import (
-    
     NomadService,
     NomadServiceConfig,
 )
@@ -13,8 +12,9 @@ from pytest_httpx import HTTPXMock
 import httpx
 import json
 
+
 async def http_client() -> AsyncGenerator[httpx.AsyncClient, None]:
-    
+
     client = httpx.AsyncClient()
     yield client
     await client.aclose()
@@ -42,7 +42,7 @@ async def test_register_volume(httpx_mock: HTTPXMock):
 
     async with httpx.AsyncClient() as client:
 
-        service = NomadService(client=client, config=NomadServiceConfig())
+        service = NomadService(client=client)
         await service.create_volume(id="volume123")
 
 
@@ -52,31 +52,27 @@ async def test_schedule_job(httpx_mock: HTTPXMock):
         url="http://localhost:4646/v1/jobs/parse",
         status_code=200,
         json={
-            "ID" : "job123",
-            "Name":"job123",
+            "ID": "job123",
+            "Name": "job123",
         },
-
         match_headers={"Content-Type": "application/json"},
     )
 
     httpx_mock.add_response(
         url="http://localhost:4646/v1/jobs",
         status_code=200,
-        json={
-            
-        },
-
+        json={},
         match_headers={"Content-Type": "application/json"},
     )
     async with httpx.AsyncClient() as client:
 
         service = NomadService(client=client, config=NomadServiceConfig())
-        
-        await service.schedule_job(job_hcl="""
-        
+
+        await service.schedule_job(
+            job_hcl="""
+
             job "job123" {
                 # should we put full content here?
             }
             """
         )
-

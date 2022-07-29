@@ -5,7 +5,9 @@ def test_create_job():
 
     job = create_job(JobData(username="myname", env={"foo": "bar"}))
 
-    assert job == """
+    assert (
+        job
+        == """
  job "jupyter-notebook-myname" {
 
     datacenters = ["dc1"]
@@ -48,5 +50,6 @@ def test_create_job():
             }
         }
     }
-}    
+}
 """
+    )

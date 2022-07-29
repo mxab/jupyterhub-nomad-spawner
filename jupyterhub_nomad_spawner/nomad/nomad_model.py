@@ -274,7 +274,7 @@ class ConsulGatewayBindAddress(BaseModel):
 
 
 class ConsulGatewayProxy(BaseModel):
-    Config_: Optional[Dict[str, Any]] = Field(None, alias='Config')
+    Config_: Optional[Dict[str, Any]] = Field(None, alias="Config")
     ConnectTimeout: Optional[int] = None
     EnvoyDNSDiscoveryType: Optional[str] = None
     EnvoyGatewayBindAddresses: Optional[Dict[str, ConsulGatewayBindAddress]] = None
@@ -1229,7 +1229,7 @@ class ConsulIngressListener(BaseModel):
 
 
 class ConsulProxy(BaseModel):
-    Config_: Optional[Dict[str, Any]] = Field(None, alias='Config')
+    Config_: Optional[Dict[str, Any]] = Field(None, alias="Config")
     ExposeConfig: Optional[ConsulExposeConfig] = None
     LocalServiceAddress: Optional[str] = None
     LocalServicePort: Optional[int] = None
@@ -1368,7 +1368,7 @@ class Resources(BaseModel):
 
 
 class SidecarTask(BaseModel):
-    Config_: Optional[Dict[str, Any]] = Field(None, alias='Config')
+    Config_: Optional[Dict[str, Any]] = Field(None, alias="Config")
     Driver: Optional[str] = None
     Env: Optional[Dict[str, str]] = None
     KillSignal: Optional[str] = None
@@ -1667,7 +1667,7 @@ class Task(BaseModel):
     Affinities: Optional[List[Affinity]] = None
     Artifacts: Optional[List[TaskArtifact]] = None
     CSIPluginConfig: Optional[TaskCSIPluginConfig] = None
-    Config_: Optional[Dict[str, Any]] = Field(None, alias='Config')
+    Config_: Optional[Dict[str, Any]] = Field(None, alias="Config")
     Constraints: Optional[List[Constraint]] = None
     DispatchPayload: Optional[DispatchPayloadConfig] = None
     Driver: Optional[str] = None

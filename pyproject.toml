@@ -39,6 +39,8 @@ build-backend = "poetry.core.masonry.api"
 gen-nomad-model = "datamodel-codegen --url https://raw.githubusercontent.com/hashicorp/nomad-openapi/main/v1/openapi.yaml --output jupyterhub_nomad_spawner/nomad_service/nomad_model.py"
 format = "black ."
 mypy = "mypy ."
+flake8 = "flake8 ."
+check = ["format", "mypy", "flake8"]
 
 
 [tool.mypy]

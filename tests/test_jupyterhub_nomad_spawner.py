@@ -22,10 +22,9 @@ from consul.aio import Consul
 import pytest_asyncio
 
 
+# @pytest.mark.parametrize("remove", (True, False))
 
-#@pytest.mark.parametrize("remove", (True, False))
-
-#nomad_client:Nomad
+# nomad_client:Nomad
 # @pytest.mark.asyncio
 # async def test_start_stop(nomadspawner_configured_app):
 #     app = nomadspawner_configured_app
@@ -65,11 +64,11 @@ import pytest_asyncio
 #         pending = user_info["servers"][server_name]["pending"]
 #     assert r.status_code in {204, 200}, r.text
 #     state = spawner.get_state()
-    
+
 
 #     assert state is not None
 class MockUser(Mock):
-    name = 'testuser'
+    name = "testuser"
     server = Server()
 
     def __init__(self, **kwargs):
@@ -84,14 +83,10 @@ class MockUser(Mock):
     @property
     def url(self):
         return self.server.url
-        
+
+
 @pytest.mark.asyncio
-async def test_spawn_start(
-    
-    config,
-    hub,
-    hub_serivce
-):
+async def test_spawn_start(config, hub, hub_serivce):
     spawner = NomadSpawner(
         hub=hub,
         user=MockUser(),
@@ -103,17 +98,14 @@ async def test_spawn_start(
     status = await spawner.poll()
     assert isinstance(status, int)
 
-    
-
     # start the spawner
     url = await spawner.start()
 
     # verify the pod exists
-    
+
     # verify poll while running
     status = await spawner.poll()
     assert status is None
-
 
     # check for activity
 
@@ -132,13 +124,10 @@ async def test_spawn_start(
     data = r.json()
     assert data["last_activity"] is not None
     # make sure spawn url is correct
-    
+
     # stop the pod
     await spawner.stop()
 
-    
     # verify exit status
     status = await spawner.poll()
     assert isinstance(status, int)
-
-
