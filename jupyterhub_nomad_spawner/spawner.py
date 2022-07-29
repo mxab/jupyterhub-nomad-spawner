@@ -378,7 +378,7 @@ class NomadSpawner(Spawner):
         nomad_service = NomadService(client=nomad_httpx_client, log=self.log)
 
         try:
-            await nomad_service.stop_job(self.job_id)
+            await nomad_service.delete_job(self.job_id)
             self.clear_state()
         except Exception as e:
             self.log.exception("Failed to stop")
