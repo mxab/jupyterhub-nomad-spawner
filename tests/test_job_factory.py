@@ -1,55 +1,94 @@
-from jupyterhub_nomad_spawner.job_factory import JobData, create_job
+import imp
+from pathlib import Path
+from jupyterhub_nomad_spawner.job_factory import (
+    JobData,
+    JobVolumeData,
+    VolumeType,
+    create_job,
+)
+
+import filecmp
+
+update_fixtures = False
+
+
+def fixture_path(test: str):
+    return f"{Path(__file__).parent}/fixtures/{test}.nomad"
+
+
+def fixture_content(test: str):
+    return open(fixture_path(test), "r").read()
+
+
+def update_fixture(test: str, job: str):
+    f = open(fixture_path(test), "w")
+    f.write(job)
+    f.close()
 
 
 def test_create_job():
 
-    job = create_job(JobData(username="myname", env={"foo": "bar"}))
-
-    assert (
-        job
-        == """
- job "jupyter-notebook-myname" {
-
-    datacenters = ["dc1"]
-
-    group "nb" {
-        network {
-            mode = "host"
-            port "notebook" {
-                to = 8888
-            }
-        }
-        task "nb" {
-            driver = "docker"
-
-            config {
-                image = "jupyter/base-notebook:python-3.8.6"
-                ports = ["notebook"]
-                network_mode = "host"
-            }
-            env {
-                foo = "bar"
-                JUPYTER_ENABLE_LAB="yes"
-                GRANT_SUDO="yes"
-            }
-
-            resources {
-                cpu    = 500
-                memory = 256
-            }
-        }
-
-        service {
-            name = "${JOB}-notebook"
-            port = "notebook"
-            check {
-                name     = "alive"
-                type     = "tcp"
-                interval = "10s"
-                timeout  = "2s"
-            }
-        }
-    }
-}
-"""
+    job = create_job(
+        JobData(
+            job_name="jupyter-notebook-123",
+            username="myname",
+            notebook_name="mynotebook",
+            env={"foo": "bar"},
+            datacenters=["dc1", "dc2"],
+            args=["--arg1", "--arg2"],
+            image="jupyter/minimal-notebook",
+            cpu=500,
+            memory=512,
+        )
     )
+    if update_fixtures:
+        update_fixture("test_create_job", job)
+    assert job == fixture_content("test_create_job")
+
+
+def test_create_job_with_host_volume():
+
+    job = create_job(
+        JobData(
+            job_name="jupyter-notebook-123",
+            username="myname",
+            env={"foo": "bar"},
+            datacenters=["dc1", "dc2"],
+            args=["--arg1", "--arg2"],
+            image="jupyter/minimal-notebook",
+            cpu=500,
+            memory=512,
+            volume_data=JobVolumeData(
+                type=VolumeType.host,
+                source="jupyternotebookhostvolume",
+                destination="/home/jovyan/work",
+            ),
+        )
+    )
+    if update_fixtures:
+        update_fixture("test_create_job_with_host_volume", job)
+    assert job == fixture_content("test_create_job_with_host_volume")
+
+
+def test_create_job_with_csi_volume():
+
+    job = create_job(
+        JobData(
+            job_name="jupyter-notebook-123",
+            username="myname",
+            env={"foo": "bar"},
+            datacenters=["dc1", "dc2"],
+            args=["--arg1", "--arg2"],
+            image="jupyter/minimal-notebook",
+            cpu=500,
+            memory=512,
+            volume_data=JobVolumeData(
+                type=VolumeType.csi,
+                source="somecsivolumeid",
+                destination="/home/jovyan/work",
+            ),
+        )
+    )
+    if update_fixtures:
+        update_fixture("test_create_job_with_csi_volume", job)
+    assert job == fixture_content("test_create_job_with_csi_volume")

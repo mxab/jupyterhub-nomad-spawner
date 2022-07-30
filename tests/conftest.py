@@ -1,18 +1,15 @@
 """pytest config for dockerspawner tests"""
-import imp
-import inspect
-import json
 import os
 import subprocess
 import time
 from textwrap import indent
 from unittest import mock
+import httpx
+import requests
 
-import jupyterhub
 import netifaces
 import pytest
 import pytest_asyncio
-from consul.aio import Consul
 from jupyterhub import version_info as jh_version_info
 from jupyterhub.tests.conftest import app as jupyterhub_app  # noqa: F401
 from jupyterhub.tests.conftest import event_loop  # noqa: F401
@@ -21,6 +18,14 @@ from jupyterhub.tests.conftest import ssl_tmpdir  # noqa: F401
 from jupyterhub.tests.mocking import MockHub
 from jupyterhub.traitlets import URLPrefix
 from jupyterhub_nomad_spawner.spawner import NomadSpawner
+import asyncio
+import logging
+import os
+
+import pytest
+from jupyterhub.app import JupyterHub
+from jupyterhub.objects import Hub
+from traitlets.config import Config
 
 # import base jupyterhub fixtures
 
@@ -67,24 +72,6 @@ def nomad_client(nomad_process):
     pass
 
 
-import asyncio
-import base64
-import inspect
-import io
-import logging
-import os
-import sys
-import tarfile
-from functools import partial
-
-import pytest
-from jupyterhub.app import JupyterHub
-from jupyterhub.objects import Hub
-from traitlets.config import Config
-
-here = os.path.abspath(os.path.dirname(__file__))
-
-
 async def cancel_tasks():
     """Cancel long-running tasks
 
@@ -111,13 +98,13 @@ async def cancel_tasks():
             log.debug("Task status: %s", t)
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    # cancel tasks, as is done in JupyterHub
-    loop.run_until_complete(cancel_tasks())
-    loop.close()
+# @pytest.fixture(scope="session")
+# def event_loop():
+#     loop = asyncio.get_event_loop_policy().new_event_loop()
+#     yield loop
+#     # cancel tasks, as is done in JupyterHub
+#     loop.run_until_complete(cancel_tasks())
+#     loop.close()
 
 
 @pytest.fixture(autouse=True)
@@ -189,12 +176,9 @@ def hub(hub_serivce) -> Hub:
 
 
 @pytest_asyncio.fixture
-async def consul():
-    consul = Consul()
-    return consul
+async def hub_serivce():
 
-
-@pytest_asyncio.fixture
-async def hub_serivce(consul: Consul):
-    (index, nodes) = await consul.catalog.service("jupyter-hub-api")
-    return nodes[0]
+    async with httpx.AsyncClient() as client:
+        r = await client.get("http://localhost:8500/v1/catalog/service/jupyter-hub-api")
+        body = r.json()
+        return body[0]

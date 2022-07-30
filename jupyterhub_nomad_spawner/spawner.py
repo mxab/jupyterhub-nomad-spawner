@@ -273,7 +273,9 @@ class NomadSpawner(Spawner):
 
             job_hcl = create_job(
                 JobData(
-                    username=notebook_id,
+                    job_name=f"jupter-notebook-{notebook_id}",
+                    username=self.user.name,
+                    notebook_name=self.name,
                     env=env,
                     args=args,
                     image=self.user_options["image"],

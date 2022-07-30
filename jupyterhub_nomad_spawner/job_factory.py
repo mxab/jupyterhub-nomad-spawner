@@ -1,7 +1,9 @@
 from enum import Enum
+from optparse import Option
 from typing import Dict, List, Optional, Tuple
 from string import Template
 import json
+from jinja2 import Environment, PackageLoader, select_autoescape
 
 from pydantic import BaseModel
 
@@ -18,9 +20,16 @@ class JobVolumeData(BaseModel):
     volume_name: str = "notebook-data"
     destination: str = "/home/jovyan/work"
 
+    class Config:
+        use_enum_values = True
+
 
 class JobData(BaseModel):
+
+    job_name: str
     username: str
+    notebook_name: Optional[str] = None
+
     env: Dict = {}
     args: List = []
     datacenters: List[str] = []
@@ -36,112 +45,11 @@ class JobData(BaseModel):
 
 def create_job(job_data: JobData) -> str:
 
-    env_json = "\n".join(
-        [f"{key} = {json.dumps(value)}" for key, value in job_data.env.items()]
+    env = Environment(
+        loader=PackageLoader("jupyterhub_nomad_spawner"), autoescape=select_autoescape()
     )
 
-    datacenters_json = json.dumps(job_data.datacenters)
+    template = env.get_template("job.hcl.j2")
+    job_hcl = template.render(**job_data.dict())
 
-    (volume_hcl, volume_mount_hcl) = create_volume_job_fragments(job_data.volume_data)
-
-    job_spec_tmpl = Template(
-        """
-
-
- job "jupyter-notebook-${username}" {
-
-    datacenters = ${datacenters_json}
-
-
-
-    group "nb" {
-
-        ${volume_hcl}
-
-        network {
-            #mode = "host"
-            port "notebook" {
-                to = 8888
-            }
-        }
-        task "nb" {
-            driver = "docker"
-
-            config {
-                image = "${image}"
-                ports = ["notebook"]
-              #  volumes = ["local/work:/home/jovyan/work"]
-                args = ${args}
-            }
-            env {
-                ${env_json}
-                JUPYTER_ENABLE_LAB="yes"
-             #   GRANT_SUDO="yes"
-            }
-
-            resources {
-                cpu    = ${cpu}
-                memory = ${memory}
-            }
-
-            ${volume_mount_hcl}
-        }
-
-        service {
-            name = "${service_name}"
-            port = "notebook"
-             check {
-                name     = "alive"
-                type     = "tcp"
-                interval = "10s"
-                timeout  = "2s"
-            }
-        }
-    }
-}
-"""
-    )
-    job_hcl = job_spec_tmpl.safe_substitute(
-        {
-            **job_data.dict(),
-            "env_json": env_json,
-            "datacenters_json": datacenters_json,
-            "volume_hcl": volume_hcl,
-            "volume_mount_hcl": volume_mount_hcl,
-        }
-    )
     return job_hcl
-
-
-def create_volume_job_fragments(
-    volume_data: Optional[JobVolumeData],
-) -> Tuple[str, str]:
-
-    if volume_data is None:
-        return "", ""
-
-    volume_hcl = Template(
-        """
-    volume "${volume_name}" {
-      type      = "${type}"
-      read_only = false
-      source    = "${source}"
-    }
-    """
-    ).safe_substitute({**volume_data.dict(), "type": volume_data.type.value})
-
-    volume_mount_hcl = Template(
-        """
-    volume_mount {
-        volume      = "${volume_name}"
-        destination = "${destination}"
-        read_only   = false
-    }
-    """
-    ).safe_substitute(volume_data.dict())
-
-    return volume_hcl, volume_mount_hcl
-
-
-class NomadVolumeData(BaseModel):
-    foo: str
