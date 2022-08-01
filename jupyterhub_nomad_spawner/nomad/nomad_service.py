@@ -41,6 +41,8 @@ class NomadService:
             Volumes=[
                 CSIVolume(
                     ID=id,
+                    Name=id,
+                    ExternalId=id,
                     AttachmentMode="file-system",
                     AccessMode="single-node-writer",
                     PluginID=plugin_id,
