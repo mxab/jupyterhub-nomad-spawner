@@ -1,6 +1,5 @@
-from logging import LoggerAdapter, Logger
-
 import logging
+from logging import Logger, LoggerAdapter
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
@@ -9,6 +8,7 @@ from httpx import AsyncClient
 from jupyterhub_nomad_spawner.nomad.nomad_model import (
     CSIVolume,
     CSIVolumeCreateRequest,
+    CSIVolumeRegisterRequest,
     JobRegisterResponse,
     JobsParseRequest,
 )
@@ -37,7 +37,7 @@ class NomadService:
     log: Union[LoggerAdapter, Logger]
 
     async def create_volume(self, id: str, plugin_id: str):
-        request = CSIVolumeCreateRequest(
+        request = CSIVolumeRegisterRequest(
             Volumes=[
                 CSIVolume(
                     ID=id,
@@ -49,7 +49,7 @@ class NomadService:
         )
 
         result = await self.client.post(
-            f"/v1/volumes/csi/{id}/create",
+            f"/v1/volumes/csi/{id}",
             json=request.dict(exclude_none=True, exclude_unset=True),
         )
         if result.is_error:
