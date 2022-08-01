@@ -50,7 +50,7 @@ class NomadService:
             ]
         )
 
-        result = await self.client.post(
+        result = await self.client.put(
             f"/v1/volume/csi/{id}",
             json=request.dict(exclude_none=True, exclude_unset=True),
         )
