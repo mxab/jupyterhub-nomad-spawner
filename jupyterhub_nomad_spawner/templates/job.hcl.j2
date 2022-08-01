@@ -4,9 +4,9 @@ job "{{ job_name }}" {
     datacenters = {{ datacenters | tojson}}
 
     meta {
-        "jupyterhub.user" = "{{ username }}"
+        jupyterhub_user = "{{ username }}"
         {% if notebook_name %}
-        "jupyterhub.notebook" = "{{ notebook_name }}"
+        jupyterhub_notebook = "{{ notebook_name }}"
         {% endif %}
     }
     group "nb" {
@@ -36,7 +36,7 @@ job "{{ job_name }}" {
             }
             env {
                 {% for key, value in env|dictsort %}
-                {{ key }} = "{{ value }}"
+                {{ key }} = {{ value | tojson}}
                 {% endfor %}
                 JUPYTER_ENABLE_LAB="yes"
                 # GRANT_SUDO="yes"

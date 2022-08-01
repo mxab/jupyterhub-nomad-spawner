@@ -8,6 +8,7 @@ import pytest
 from jupyterhub.objects import Hub, Server
 from jupyterhub.orm import Spawner
 import requests
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from jupyterhub_nomad_spawner import __version__
 from jupyterhub_nomad_spawner.spawner import NomadSpawner
@@ -16,9 +17,6 @@ from jupyterhub.tests.mocking import public_url
 from jupyterhub.tests.test_api import add_user, api_request
 from jupyterhub.utils import url_path_join
 from tornado.httpclient import AsyncHTTPClient
-
-from nomad import Nomad
-from consul.aio import Consul
 import pytest_asyncio
 
 
@@ -94,7 +92,15 @@ async def test_spawn_start(config, hub, hub_serivce):
         api_token="abc123",
         oauth_client_id="unused",
     )
+    options = {}
+    options["image"] = "jupyter/minimal-notebook:2022-07-27"
+    options["datacenters"] = ["dc1"]
+    options["memory"] = 512
+    options["volume_type"] = None
+
+    spawner.user_options = options
     # empty spawner isn't running
+
     status = await spawner.poll()
     assert isinstance(status, int)
 
@@ -109,11 +115,21 @@ async def test_spawn_start(config, hub, hub_serivce):
 
     # check for activity
 
-    api_url = (
-        f'http://{hub_serivce["ServiceAddress"]}:{hub_serivce["ServicePort"]}/hub/api'
-    )
+    api_url = f'http://{hub_serivce["Address"]}:{hub_serivce["Port"]}/hub/api'
 
-    time.sleep(5)
+    assert_activity(api_url)
+    # make sure spawn url is correct
+
+    # stop the pod
+    await spawner.stop()
+
+    # verify exit status
+    status = await spawner.poll()
+    assert isinstance(status, int)
+
+
+@retry(stop=stop_after_attempt(6), wait=wait_fixed(10))
+def assert_activity(api_url):
     token = "test-secret-token"
     r = requests.get(
         api_url + "/users/testuser",
@@ -123,11 +139,3 @@ async def test_spawn_start(config, hub, hub_serivce):
     )
     data = r.json()
     assert data["last_activity"] is not None
-    # make sure spawn url is correct
-
-    # stop the pod
-    await spawner.stop()
-
-    # verify exit status
-    status = await spawner.poll()
-    assert isinstance(status, int)

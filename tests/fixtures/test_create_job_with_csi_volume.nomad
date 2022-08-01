@@ -4,18 +4,18 @@ job "jupyter-notebook-123" {
     datacenters = ["dc1", "dc2"]
 
     meta {
-        "jupyterhub.user" = "myname"
-
+        jupyterhub_user = "myname"
+        
     }
     group "nb" {
 
-
+        
         volume "notebook-data" {
             type      = "csi"
             read_only = false
             source    = "somecsivolumeid"
         }
-
+        
 
         network {
             port "notebook" {
@@ -33,9 +33,9 @@ job "jupyter-notebook-123" {
                 args = ["--arg1", "--arg2"]
             }
             env {
-
+                
                 foo = "bar"
-
+                
                 JUPYTER_ENABLE_LAB="yes"
                 # GRANT_SUDO="yes"
             }
@@ -45,13 +45,13 @@ job "jupyter-notebook-123" {
                 memory = 512
             }
 
-
+            
             volume_mount {
                 volume      = "notebook-data"
                 destination = "/home/jovyan/work"
                 read_only   = false
             }
-
+            
         }
 
         service {

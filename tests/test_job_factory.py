@@ -1,13 +1,13 @@
+import filecmp
 import imp
 from pathlib import Path
+
 from jupyterhub_nomad_spawner.job_factory import (
     JobData,
     JobVolumeData,
     VolumeType,
     create_job,
 )
-
-import filecmp
 
 update_fixtures = False
 
@@ -33,7 +33,7 @@ def test_create_job():
             job_name="jupyter-notebook-123",
             username="myname",
             notebook_name="mynotebook",
-            env={"foo": "bar"},
+            env={"foo": "bar", "some_list": '["a", "b", "c"]'},
             datacenters=["dc1", "dc2"],
             args=["--arg1", "--arg2"],
             image="jupyter/minimal-notebook",

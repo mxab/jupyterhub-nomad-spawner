@@ -4,14 +4,14 @@ job "jupyter-notebook-123" {
     datacenters = ["dc1", "dc2"]
 
     meta {
-        "jupyterhub.user" = "myname"
-
-        "jupyterhub.notebook" = "mynotebook"
-
+        jupyterhub_user = "myname"
+        
+        jupyterhub_notebook = "mynotebook"
+        
     }
     group "nb" {
 
-
+        
 
         network {
             port "notebook" {
@@ -29,9 +29,11 @@ job "jupyter-notebook-123" {
                 args = ["--arg1", "--arg2"]
             }
             env {
-
+                
                 foo = "bar"
-
+                
+                some_list = "[\"a\", \"b\", \"c\"]"
+                
                 JUPYTER_ENABLE_LAB="yes"
                 # GRANT_SUDO="yes"
             }
@@ -41,7 +43,7 @@ job "jupyter-notebook-123" {
                 memory = 512
             }
 
-
+            
         }
 
         service {

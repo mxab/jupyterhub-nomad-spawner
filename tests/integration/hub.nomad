@@ -18,7 +18,7 @@ job "hub" {
             driver = "docker"
 
             config {
-                image = "jupyterhub/jupyterhub"
+                image = "jupyterhub/jupyterhub:2"
 
                 args = [
                         "jupyterhub",
@@ -28,7 +28,7 @@ job "hub" {
                 ports = ["hub", "api"]
                 #network_mode = "host"
             }
-            
+
             template {
                 destination = "/local/jupyterhub_config.py"
 
@@ -72,7 +72,7 @@ c.JupyterHub.services = [
                 interval = "10s"
                 timeout  = "2s"
             }
-            
+
         }
     }
 }

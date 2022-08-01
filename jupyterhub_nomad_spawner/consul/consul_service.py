@@ -1,6 +1,6 @@
-from logging import LoggerAdapter
+from logging import Logger, LoggerAdapter
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 from attrs import define
 from httpx import AsyncClient
 from pydantic import AnyHttpUrl, BaseModel, parse_obj_as
@@ -24,7 +24,8 @@ class ConsulServiceConfig(BaseModel):
 @define
 class ConsulService:
     client: AsyncClient
-    log: LoggerAdapter
+
+    log: Union[LoggerAdapter, Logger]
 
     async def health_service(self, service_name: str):
         result = await self.client.get(

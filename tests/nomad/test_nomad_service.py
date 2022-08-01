@@ -1,4 +1,5 @@
 import imp
+import logging
 from typing import AsyncGenerator
 
 
@@ -23,7 +24,7 @@ async def http_client() -> AsyncGenerator[httpx.AsyncClient, None]:
 @pytest.mark.asyncio
 async def test_register_volume(httpx_mock: HTTPXMock):
     httpx_mock.add_response(
-        url="http://localhost:4646/v1/volumes/csi/volume123/create",
+        url="http://localhost:4646/v1/volumes/csi/csi_plugin_1/create",
         status_code=200,
         json=1,
         match_headers={"Content-Type": "application/json"},
@@ -42,8 +43,8 @@ async def test_register_volume(httpx_mock: HTTPXMock):
 
     async with httpx.AsyncClient() as client:
 
-        service = NomadService(client=client)
-        await service.create_volume(id="volume123")
+        service = NomadService(client=client, log=logging.getLogger("test"))
+        await service.create_volume(id="volume123", plugin_id="csi_plugin_1")
 
 
 @pytest.mark.asyncio
@@ -66,7 +67,7 @@ async def test_schedule_job(httpx_mock: HTTPXMock):
     )
     async with httpx.AsyncClient() as client:
 
-        service = NomadService(client=client, config=NomadServiceConfig())
+        service = NomadService(client=client, log=logging.getLogger("test"))
 
         await service.schedule_job(
             job_hcl="""

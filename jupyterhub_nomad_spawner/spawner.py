@@ -266,7 +266,7 @@ class NomadSpawner(Spawner):
 
             volume_data: Optional[JobVolumeData] = None
 
-            if self.user_options["volume_type"]:
+            if self.user_options.get("volume_type", None):
                 volume_data = await self.create_job_volume_data(
                     nomad_service, notebook_id
                 )

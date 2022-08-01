@@ -1,6 +1,8 @@
-from logging import LoggerAdapter
+from logging import LoggerAdapter, Logger
+
+import logging
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 from attrs import define
 from httpx import AsyncClient
@@ -32,7 +34,7 @@ class NomadServiceConfig(BaseModel):
 class NomadService:
 
     client: AsyncClient
-    log: LoggerAdapter
+    log: Union[LoggerAdapter, Logger]
 
     async def create_volume(self, id: str, plugin_id: str):
         request = CSIVolumeCreateRequest(
