@@ -51,7 +51,7 @@ class NomadService:
         )
 
         result = await self.client.post(
-            f"/v1/volumes/csi/{id}",
+            f"/v1/volume/csi/{id}",
             json=request.dict(exclude_none=True, exclude_unset=True),
         )
         if result.is_error:
@@ -62,7 +62,7 @@ class NomadService:
     async def delete_volume(self, id: str):
 
         result = await self.client.post(
-            f"/v1/volumes/csi/{id}/delete",
+            f"/v1/volume/csi/{id}/delete",
         )
         if result.is_error:
             raise Exception(f"Error deleting volume: {result.text}")
