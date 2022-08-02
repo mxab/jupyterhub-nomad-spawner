@@ -1,16 +1,15 @@
 # Nomad Jupyter Spawner
 
 > **Warning**
-> This code currently misses a proper test setup and is not yet completed
+> This project is currently in beta
 
 Spawns a Jupyter Notebook via Jupyterhub.
 
 Users can select and image, resource and connect it with volumes (csi / host)
 
 
-TODO:
+TODOs:
 - Document setup
-- Write proper tests
 - Extend for policies
 - Namespace support
 
@@ -29,9 +28,7 @@ import tarfile
 c.JupyterHub.spawner_class = "nomad-spawner"
 c.JupyterHub.bind_url = "http://0.0.0.0:8000"
 c.JupyterHub.hub_bind_url = "http://0.0.0.0:8081"
-
 c.JupyterHub.hub_connect_url = f"http://{os.environ.get('NOMAD_IP_api')}:{os.environ.get('NOMAD_HOST_PORT_api')}"
-
 
 c.JupyterHub.allow_named_servers = True
 c.JupyterHub.named_server_limit_per_user = 5
@@ -39,12 +36,7 @@ c.JupyterHub.named_server_limit_per_user = 5
 c.JupyterHub.authenticator_class = DummyAuthenticator
 
 c.NomadSpawner.mem_limit = "2G"
-
 c.NomadSpawner.datacenters = ["dc1", "dc2", "dc3"]
-
-c.NomadSpawner.csi_plugin_ids = ["..."]
-
-
 
 ```
 
