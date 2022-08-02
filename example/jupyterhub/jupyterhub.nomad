@@ -19,7 +19,7 @@ job "jupyterhub" {
             driver = "docker"
 
             config {
-                image = "mxab/jupyterhub:1"
+                image = "ghcr.io/mxab/jupyterhub-nomad-spawner:main"
                 auth_soft_fail = false
 
                 args = [
