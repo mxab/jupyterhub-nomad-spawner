@@ -273,7 +273,7 @@ class NomadSpawner(Spawner):
 
             job_hcl = create_job(
                 JobData(
-                    job_name=f"jupter-notebook-{notebook_id}",
+                    job_name=f"jupyterhub-notebook-{notebook_id}",
                     username=self.user.name,
                     notebook_name=self.name,
                     env=env,
