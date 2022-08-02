@@ -7,7 +7,7 @@ Spawns a Jupyter Notebook via Jupyterhub.
 
 Users can select and image, resource and connect it with volumes (csi / host)
 
-
+## Show Case
 https://user-images.githubusercontent.com/1607547/182332760-b0f96ba2-faa8-47b6-9bd7-db93b8d31356.mp4
 
 
