@@ -1,32 +1,16 @@
 """pytest config for dockerspawner tests"""
-import asyncio
 import logging
-import os
 import subprocess
 import time
 from pathlib import Path
-from textwrap import indent
-from unittest import mock
 
 import httpx
-import netifaces
 import pytest
 import pytest_asyncio
 import requests
-from jupyterhub import version_info as jh_version_info
-from jupyterhub.app import JupyterHub
 from jupyterhub.objects import Hub
-from jupyterhub.tests.conftest import app as jupyterhub_app  # noqa: F401
-from jupyterhub.tests.conftest import event_loop  # noqa: F401
-from jupyterhub.tests.conftest import io_loop  # noqa: F401
-from jupyterhub.tests.conftest import ssl_tmpdir  # noqa: F401
-from jupyterhub.tests.mocking import MockHub
-from jupyterhub.traitlets import URLPrefix
-from jupyterhub_nomad_spawner.spawner import NomadSpawner
-from traitlets.config import Config
 from tenacity import retry, stop_after_attempt, wait_fixed
-
-# import base jupyterhub fixtures
+from traitlets.config import Config
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_fixed(2))
@@ -80,41 +64,6 @@ def consul_process(tmp_path_factory):
 
 def nomad_client(nomad_process):
     pass
-
-
-async def cancel_tasks():
-    """Cancel long-running tasks
-
-    This is copied from JupyterHub's shutdown_cancel_tasks (as of 2.1.1)
-    to emulate JupyterHub's cleanup of cancelled tasks at shutdown.
-
-    shared_client's cleanup relies on this.
-    """
-    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-    log = logging.getLogger("traitlets")
-    if tasks:
-        log.debug(f"Cancelling {len(tasks)} pending tasks")
-        [t.cancel() for t in tasks]
-
-        try:
-            await asyncio.wait(tasks)
-        except asyncio.CancelledError as e:
-            log.debug("Caught Task CancelledError. Ignoring")
-        except Exception:
-            log.exception("Caught Exception in cancelled task")
-
-        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-        for t in tasks:
-            log.debug("Task status: %s", t)
-
-
-# @pytest.fixture(scope="session")
-# def event_loop():
-#     loop = asyncio.get_event_loop_policy().new_event_loop()
-#     yield loop
-#     # cancel tasks, as is done in JupyterHub
-#     loop.run_until_complete(cancel_tasks())
-#     loop.close()
 
 
 @pytest.fixture(autouse=True)
@@ -181,6 +130,7 @@ def hub(hub_serivce) -> Hub:
             "Authorization": f"token {token}",
         },
     )
+    r.raise_for_status()
 
 
 @pytest_asyncio.fixture
@@ -201,7 +151,7 @@ async def hub_job(nomad_process):
     async with httpx.AsyncClient(base_url="http://localhost:4646") as client:
         job_parse_request = {"JobHCL": job_hcl, "Canonicalize": True}
         parsed_job = await client.post(
-            f"/v1/jobs/parse",
+            "/v1/jobs/parse",
             json=job_parse_request,
         )
 
@@ -215,6 +165,7 @@ async def hub_job(nomad_process):
             "Job": parsed_job_as_dict,
         }
         job = await client.post(
-            f"/v1/jobs",
+            "/v1/jobs",
             json=register_job_as_dict,
         )
+        job.raise_for_status()

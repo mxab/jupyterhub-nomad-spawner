@@ -1,10 +1,7 @@
 from enum import Enum
-from optparse import Option
-from typing import Dict, List, Optional, Tuple
-from string import Template
-import json
-from jinja2 import Environment, PackageLoader, select_autoescape
+from typing import Dict, List, Optional
 
+from jinja2 import Environment, PackageLoader, select_autoescape
 from pydantic import BaseModel
 
 
@@ -30,12 +27,12 @@ class JobData(BaseModel):
     username: str
     notebook_name: Optional[str] = None
 
+    service_name: str
     env: Dict = {}
     args: List = []
     datacenters: List[str] = []
     region: str = "global"
 
-    service_name: str = "${JOB}-notebook"
     image: str = "jupyter/base-notebook:latest"
     memory: int = 512
     cpu: int = 100

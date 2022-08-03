@@ -55,7 +55,7 @@ job "jupyter-notebook-123" {
         }
 
         service {
-            name = "${JOB}-notebook"
+            name = "jupyter-notebook-123"
             port = "notebook"
              check {
                 name     = "alive"

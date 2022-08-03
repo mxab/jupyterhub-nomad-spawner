@@ -1,18 +1,16 @@
-import logging
 from logging import Logger, LoggerAdapter
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
 from attrs import define
 from httpx import AsyncClient
+from pydantic import AnyHttpUrl, BaseModel, parse_obj_as
+
 from jupyterhub_nomad_spawner.nomad.nomad_model import (
     CSIVolume,
-    CSIVolumeCreateRequest,
     CSIVolumeRegisterRequest,
-    JobRegisterResponse,
     JobsParseRequest,
 )
-from pydantic import AnyHttpUrl, BaseModel, parse_obj_as
 
 
 class NomadTLSConfig(BaseModel):
@@ -42,7 +40,7 @@ class NomadService:
                 CSIVolume(
                     ID=id,
                     Name=id,
-                    ExternalId=id,
+                    ExternalID=id,
                     AttachmentMode="file-system",
                     AccessMode="single-node-writer",
                     PluginID=plugin_id,
@@ -50,13 +48,15 @@ class NomadService:
             ]
         )
 
+        create_volume_json = request.dict(exclude_none=True, exclude_unset=True)
         result = await self.client.put(
             f"/v1/volume/csi/{id}",
-            json=request.dict(exclude_none=True, exclude_unset=True),
+            json=create_volume_json,
         )
         if result.is_error:
             raise Exception(
-                f"Error registering volume, status code : {result.status_code}, content: {result.text}"
+                "Error registering volume."
+                + f" status code: {result.status_code}, content: {result.text}"
             )
 
     async def delete_volume(self, id: str):
@@ -72,7 +72,7 @@ class NomadService:
         self.log.info("Parsing job: %s", job_hcl)
         job_parse_request = JobsParseRequest(JobHCL=job_hcl, Canonicalize=True)
         parsed_job = await self.client.post(
-            f"/v1/jobs/parse",
+            "/v1/jobs/parse",
             json=job_parse_request.dict(exclude_none=True, exclude_unset=True),
         )
 
@@ -82,17 +82,7 @@ class NomadService:
         parsed_job_as_dict = parsed_job.json()
         self.log.info("Got parsed job %s", parsed_job_as_dict)
         job_id = parsed_job_as_dict["ID"]
-        job_name = parsed_job_as_dict["Name"]
-        # register_job_request = JobRegisterRequest(
-        #     EnforceIndex=False,
-        #     PreserveCounts=True,
-        #     PolicyOverride=False,
-        #     JobModifyIndex=0,
-        #     Job=parsed_job_as_dict,
-        # )
 
-        # register_job_as_dict = register_job_request.dict(exclude_none=True, exclude_unset=True)
-        # self.log.info("Registering job %s", register_job_as_dict)
         register_job_as_dict = {
             "EnforceIndex": False,
             "PreserveCounts": True,
@@ -101,15 +91,13 @@ class NomadService:
             "Job": parsed_job_as_dict,
         }
         job = await self.client.post(
-            f"/v1/jobs",
+            "/v1/jobs",
             json=register_job_as_dict,
         )
         if job.is_error:
             raise Exception(f"Error registering job: {job.text}")
 
-        job_register_response = JobRegisterResponse.parse_obj(job.json())
-
-        return (job_id, job_name)
+        return job_id
 
     async def job_status(self, job_id) -> str:
         response = await self.client.get(f"/v1/job/{job_id}")

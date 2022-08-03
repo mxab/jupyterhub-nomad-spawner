@@ -7,10 +7,9 @@ from typing import Optional, Tuple, Union
 
 from httpx import AsyncClient
 from jupyterhub.spawner import Spawner
-from pydantic import BaseModel, parse_obj_as
+from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_fixed
-from traitlets import Bool, Integer, List, Unicode, default
-
+from traitlets import Bool, List, Unicode, default
 
 from jupyterhub_nomad_spawner.consul.consul_service import (
     ConsulService,
@@ -244,6 +243,44 @@ class NomadSpawner(Spawner):
     def _default_csi_plugin_ids(self) -> t.List[str]:
         return []
 
+    base_job_name = Unicode(
+        help="""
+        The base name of the job. Will be concated with -<notebook_id>
+        """
+    ).tag(config=True)
+
+    @default("base_job_name")
+    def _default_base_job_name(self):
+        return "jupyterhub-notebook"
+
+    @property
+    def job_name(self) -> str:
+        if self.notebook_id:
+            return f"{self.base_job_name}-{self.notebook_id}"
+        raise ValueError("notebook_id is not set")
+
+    base_csi_volume_name = Unicode(
+        help="""
+        The base name of the csi volume. Will be concated with -<notebook_id>
+    """
+    ).tag(config=True)
+
+    @default("base_csi_volume_name")
+    def _default_base_csi_volume_name(self):
+        return "jupyterhub-notebook"
+
+    @property
+    def csi_volume_name(self) -> str:
+        if self.notebook_id:
+            return f"{self.base_csi_volume_name}-{self.notebook_id}"
+        raise ValueError("notebook_id is not set")
+
+    @property
+    def service_name(self) -> str:
+        if self.notebook_id:
+            return f"{self.job_name}"
+        raise ValueError("notebook_id is not set")
+
     async def start(self):
 
         nomad_service_config = build_nomad_config_from_options(self)
@@ -273,9 +310,10 @@ class NomadSpawner(Spawner):
 
             job_hcl = create_job(
                 JobData(
-                    job_name=f"jupyterhub-notebook-{notebook_id}",
+                    job_name=self.job_name,
                     username=self.user.name,
                     notebook_name=self.name,
+                    service_name=self.service_name,
                     env=env,
                     args=args,
                     image=self.user_options["image"],
@@ -285,12 +323,9 @@ class NomadSpawner(Spawner):
                 )
             )
 
-            job_id, job_name = await nomad_service.schedule_job(job_hcl)
-            self.job_id = job_id
-            self.job_name = job_name
+            await nomad_service.schedule_job(job_hcl)
             await self._ensure_running(nomad_service=nomad_service)
 
-            self.service_name = f"{job_id}-notebook"
             service_data = await self.service(consul_service)
         except Exception as e:
             self.log.exception("Failed to start")
@@ -304,12 +339,11 @@ class NomadSpawner(Spawner):
         return service_data
 
     async def create_job_volume_data(self, nomad_service, notebook_id):
-        self.log.info(
-            "Configuring volume of type: %s", self.user_options["volume_type"]
-        )
+        volume_type = self.user_options["volume_type"]
+        self.log.info("Configuring volume of type: %s", volume_type)
 
-        if self.user_options["volume_type"] == "csi":
-            volume_id = f"notebook-{notebook_id}"
+        if volume_type == "csi":
+            volume_id = self.csi_volume_name
             await nomad_service.create_volume(
                 id=volume_id,
                 plugin_id=self.user_options["volume_csi_plugin_id"],
@@ -319,7 +353,7 @@ class NomadSpawner(Spawner):
                 destination=self.user_options["volume_destination"],
                 source=volume_id,
             )
-        elif self.user_options["volume_type"] == "host":
+        elif volume_type == "host":
             volume_data = JobVolumeData(
                 type="host",
                 destination=self.user_options["volume_destination"],
@@ -331,15 +365,15 @@ class NomadSpawner(Spawner):
     async def _ensure_running(self, nomad_service: NomadService):
         while True:
             try:
-                status = await nomad_service.job_status(self.job_id)
-            except Exception as e:
+                status = await nomad_service.job_status(self.job_name)
+            except Exception:
                 self.log.exception("Failed to get job status")
             if status == "running":
                 break
             elif status == "dead":
-                raise Exception(f"Job (id={self.job_id}) is dead already")
+                raise Exception(f"Job (name={self.job_name}) is dead already")
             else:
-                self.log.info("Waiting for %s...", self.job_id)
+                self.log.info("Waiting for %s...", self.job_name)
                 await asyncio.sleep(5)
 
     @retry(wait=wait_fixed(3), stop=stop_after_attempt(5))
@@ -362,7 +396,7 @@ class NomadSpawner(Spawner):
 
         nomad_service = NomadService(client=nomad_httpx_client, log=self.log)
         try:
-            status = await nomad_service.job_status(self.job_id)
+            status = await nomad_service.job_status(self.job_name)
 
             running = status == "running"
             if not running:
@@ -371,7 +405,7 @@ class NomadSpawner(Spawner):
                 )
                 return status
             return None
-        except Exception as e:
+        except Exception:
             self.log.exception("Failed to poll")
             return -1
         finally:
@@ -385,9 +419,9 @@ class NomadSpawner(Spawner):
         nomad_service = NomadService(client=nomad_httpx_client, log=self.log)
 
         try:
-            await nomad_service.delete_job(self.job_id)
+            await nomad_service.delete_job(self.job_name)
             self.clear_state()
-        except Exception as e:
+        except Exception:
             self.log.exception("Failed to stop")
         finally:
             if nomad_httpx_client is not None:
@@ -396,9 +430,6 @@ class NomadSpawner(Spawner):
     def get_state(self):
         """get the current state"""
         state = super().get_state()
-        state["job_id"] = self.job_id
-        state["job_name"] = self.job_name
-        state["service_name"] = self.service_name
         state["notebook_id"] = self.notebook_id
 
         return state
@@ -406,21 +437,13 @@ class NomadSpawner(Spawner):
     def load_state(self, state):
         """load state from the database"""
         super().load_state(state)
-        if "job_id" in state:
-            self.job_id = state["job_id"]
-        if "job_name" in state:
-            self.job_name = state["job_name"]
-        if "service_name" in state:
-            self.service_name = state["service_name"]
         if "notebook_id" in state:
             self.notebook_id = state["notebook_id"]
 
     def clear_state(self):
         """clear any state (called after shutdown)"""
         super().clear_state()
-        self.job_id = None
-        self.job_name = None
-        self.service_name = None
+        self.notebook_id = None
 
     @property
     def options_form(self) -> str:

@@ -1,5 +1,4 @@
-import filecmp
-import imp
+import logging
 from pathlib import Path
 
 from jupyterhub_nomad_spawner.job_factory import (
@@ -9,7 +8,7 @@ from jupyterhub_nomad_spawner.job_factory import (
     create_job,
 )
 
-update_fixtures = False
+log = logging.getLogger(__name__)
 
 
 def fixture_path(test: str):
@@ -21,16 +20,18 @@ def fixture_content(test: str):
 
 
 def update_fixture(test: str, job: str):
+    log.warning("Updating job fixtures")
     f = open(fixture_path(test), "w")
     f.write(job)
     f.close()
 
 
-def test_create_job():
+def test_create_job(update_job_fixtures: bool):
 
     job = create_job(
         JobData(
             job_name="jupyter-notebook-123",
+            service_name="jupyter-notebook-123",
             username="myname",
             notebook_name="mynotebook",
             env={"foo": "bar", "some_list": '["a", "b", "c"]'},
@@ -41,16 +42,17 @@ def test_create_job():
             memory=512,
         )
     )
-    if update_fixtures:
+    if update_job_fixtures:
         update_fixture("test_create_job", job)
     assert job == fixture_content("test_create_job")
 
 
-def test_create_job_with_host_volume():
+def test_create_job_with_host_volume(update_job_fixtures: bool):
 
     job = create_job(
         JobData(
             job_name="jupyter-notebook-123",
+            service_name="jupyter-notebook-123",
             username="myname",
             env={"foo": "bar"},
             datacenters=["dc1", "dc2"],
@@ -65,16 +67,17 @@ def test_create_job_with_host_volume():
             ),
         )
     )
-    if update_fixtures:
+    if update_job_fixtures:
         update_fixture("test_create_job_with_host_volume", job)
     assert job == fixture_content("test_create_job_with_host_volume")
 
 
-def test_create_job_with_csi_volume():
+def test_create_job_with_csi_volume(update_job_fixtures: bool):
 
     job = create_job(
         JobData(
             job_name="jupyter-notebook-123",
+            service_name="jupyter-notebook-123",
             username="myname",
             env={"foo": "bar"},
             datacenters=["dc1", "dc2"],
@@ -89,6 +92,6 @@ def test_create_job_with_csi_volume():
             ),
         )
     )
-    if update_fixtures:
+    if update_job_fixtures:
         update_fixture("test_create_job_with_csi_volume", job)
     assert job == fixture_content("test_create_job_with_csi_volume")

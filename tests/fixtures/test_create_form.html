@@ -4,9 +4,11 @@
 </div>
 
 <datalist id="common_images">
-    {% for item in common_images %}
-    <option value="{{ item }}">{{ item }}</option>
-    {% endfor %}
+    
+    <option value="common_image1">common_image1</option>
+    
+    <option value="common_image2">common_image2</option>
+    
 </datalist>
 
 <div class="form-group">
@@ -14,15 +16,17 @@
         Datacenters
     </label>
     <select class="form-control" id="datacenters" name="datacenters" multiple="true" required>
-        {% for item in datacenters %}
-        <option value="{{ item }}" {% if loop.first %} selected {% endif %}>{{ item }}</option>
-        {% endfor %}
+        
+        <option value="dc1"  selected >dc1</option>
+        
+        <option value="dc2" >dc2</option>
+        
     </select>
 </div>
 <div class="form-group">
     <label for="memory">Memory</label>
-    <input class="form-control" type="number" id="memory" min="8" name="memory" value="1024" {% if memory_limit %}
-        max="{{ memory_limit }}" {% endif %}>
+    <input class="form-control" type="number" id="memory" min="8" name="memory" value="1024" 
+        max="1024" >
 </div>
 
 <div class="radio">
@@ -49,17 +53,19 @@
     <input class="form-control" id="volume_source" name="volume_source" value="jupyter">
 </div>
 
-{% if csi_plugin_ids %}
+
 <div class="form-group csi-volume">
     <label for="volume_csi_plugin_id">Volume CSI Plugin ID</label>
     <select class="form-control" id="volume_csi_plugin_id" name="volume_csi_plugin_id">
-        {% for item in csi_plugin_ids %}
-        <option value="{{ item }}" {% if loop.first %} selected {% endif %}>{{ item }}</option>
-        {% endfor %}
+        
+        <option value="csi_plugin_id1"  selected >csi_plugin_id1</option>
+        
+        <option value="csi_plugin_id2" >csi_plugin_id2</option>
+        
     </select>
 </div>
 
-{% endif %}
+
 
 <div class="form-group volume-destination">
     <label for="volume_destination">Volume Destination</label>
