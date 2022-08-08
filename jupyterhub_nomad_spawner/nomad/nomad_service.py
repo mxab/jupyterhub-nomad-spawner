@@ -8,6 +8,7 @@ from pydantic import AnyHttpUrl, BaseModel, parse_obj_as
 
 from jupyterhub_nomad_spawner.nomad.nomad_model import (
     CSIVolume,
+    CSIVolumeCapability,
     CSIVolumeRegisterRequest,
     JobsParseRequest,
 )
@@ -44,6 +45,12 @@ class NomadService:
                     AttachmentMode="file-system",
                     AccessMode="single-node-writer",
                     PluginID=plugin_id,
+                    RequestedCapabilities=[
+                        CSIVolumeCapability(
+                            AttachmentMode="file-system",
+                            AccessMode="single-node-writer",
+                        )
+                    ],
                 )
             ]
         )
