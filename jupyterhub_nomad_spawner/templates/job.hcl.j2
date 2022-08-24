@@ -16,6 +16,11 @@ job "{{ job_name }}" {
             type      = "{{ volume_data.type }}"
             read_only = false
             source    = "{{ volume_data.source }}"
+
+            {% if volume_data.type == "csi" %}
+            attachment_mode = "file-system"
+            access_mode     = "single-node-writer"
+            {% endif %}
         }
         {% endif %}
 

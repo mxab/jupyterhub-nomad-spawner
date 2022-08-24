@@ -9,7 +9,7 @@ from pydantic import AnyHttpUrl, BaseModel, parse_obj_as
 from jupyterhub_nomad_spawner.nomad.nomad_model import (
     CSIVolume,
     CSIVolumeCapability,
-    CSIVolumeRegisterRequest,
+    CSIVolumeCreateRequest,
     JobsParseRequest,
 )
 
@@ -36,7 +36,14 @@ class NomadService:
     log: Union[LoggerAdapter, Logger]
 
     async def create_volume(self, id: str, plugin_id: str):
-        request = CSIVolumeRegisterRequest(
+        # TODO: add potential uid/gid to parameters
+        # eg. rocketduck
+        #   parameters = {
+        #    uid = "1000"
+        #    gid = "1000"
+        #    mode = "770"
+        #   }
+        request = CSIVolumeCreateRequest(
             Volumes=[
                 CSIVolume(
                     ID=id,
@@ -51,13 +58,17 @@ class NomadService:
                             AccessMode="single-node-writer",
                         )
                     ],
+                    
+                    # TODO: configure
+                    RequestedCapacityMin=13421772,
+                    RequestedCapacityMax=134217728 * 2,
                 )
             ]
         )
 
         create_volume_json = request.dict(exclude_none=True, exclude_unset=True)
         result = await self.client.put(
-            f"/v1/volume/csi/{id}",
+            f"/v1/volume/csi/{id}/create",
             json=create_volume_json,
         )
         if result.is_error:
@@ -65,6 +76,7 @@ class NomadService:
                 "Error registering volume."
                 + f" status code: {result.status_code}, content: {result.text}"
             )
+        self.log.info("Created volume (status code: %d)", result.status_code)
 
     async def delete_volume(self, id: str):
 

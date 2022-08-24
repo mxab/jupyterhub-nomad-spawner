@@ -338,7 +338,7 @@ class NomadSpawner(Spawner):
                 await consul_httpx_client.aclose()
         return service_data
 
-    async def create_job_volume_data(self, nomad_service, notebook_id):
+    async def create_job_volume_data(self, nomad_service: NomadService, notebook_id):
         volume_type = self.user_options["volume_type"]
         self.log.info("Configuring volume of type: %s", volume_type)
 
