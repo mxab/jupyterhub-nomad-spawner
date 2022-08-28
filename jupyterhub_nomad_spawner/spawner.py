@@ -3,13 +3,19 @@ import hashlib
 import os
 import ssl
 import typing as t
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 from httpx import AsyncClient
 from jupyterhub.spawner import Spawner
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_fixed
-from traitlets import Bool, List, Unicode, default
+from traitlets import Bool
+from traitlets import Callable as TCallable
+from traitlets import Dict as TDict
+from traitlets import Int as TInt
+from traitlets import List, Unicode
+from traitlets import Union as TUnion
+from traitlets import default
 
 from jupyterhub_nomad_spawner.consul.consul_service import (
     ConsulService,
@@ -269,6 +275,32 @@ class NomadSpawner(Spawner):
     def _default_base_csi_volume_name(self):
         return "jupyterhub-notebook"
 
+    csi_volume_parameters = TUnion(
+        [TCallable(), TDict()],
+        help="""
+        When a CSI Volume is used, calculate the extra parameters
+        def csi_volume_parameters(spawner):
+            if spawner.user_options["volume_csi_plugin_id"] == "rocketduck-csi-plugin":
+                return {
+                    "gid" : 1000,
+                    "uid" : 1000,
+                    "mode" : "770"
+                }
+            else:
+                return None
+        c.NomadSpawner.csi_volume_parameters = csi_volume_parameters
+        """,
+    ).tag(config=True)
+
+    csi_capacity = TInt(
+        help="""
+        The min csi capacity in bytes
+        e.g.
+
+        c.NomadSpawner.csi_capacity = 13421772
+        """,
+    ).tag(config=True)
+
     @property
     def csi_volume_name(self) -> str:
         if self.notebook_id:
@@ -304,9 +336,7 @@ class NomadSpawner(Spawner):
             volume_data: Optional[JobVolumeData] = None
 
             if self.user_options.get("volume_type", None):
-                volume_data = await self.create_job_volume_data(
-                    nomad_service, notebook_id
-                )
+                volume_data = await self.create_job_volume_data(nomad_service)
 
             job_hcl = create_job(
                 JobData(
@@ -338,15 +368,20 @@ class NomadSpawner(Spawner):
                 await consul_httpx_client.aclose()
         return service_data
 
-    async def create_job_volume_data(self, nomad_service: NomadService, notebook_id):
+    async def create_job_volume_data(self, nomad_service: NomadService):
         volume_type = self.user_options["volume_type"]
         self.log.info("Configuring volume of type: %s", volume_type)
 
         if volume_type == "csi":
             volume_id = self.csi_volume_name
+            parameters = self._get_csi_extra_parameters()
+
+            min_size: Optional[int] = self.csi_capacity
             await nomad_service.create_volume(
                 id=volume_id,
                 plugin_id=self.user_options["volume_csi_plugin_id"],
+                parameters=parameters,
+                min_size=min_size,
             )
             volume_data = JobVolumeData(
                 type="csi",
@@ -361,6 +396,14 @@ class NomadSpawner(Spawner):
             )
 
         return volume_data
+
+    def _get_csi_extra_parameters(self) -> Optional[Dict]:
+        parameters: Optional[Dict] = None
+        if callable(self.csi_volume_parameters):
+            parameters = self.csi_volume_parameters(self)
+        else:
+            parameters = self.csi_volume_parameters
+        return parameters
 
     async def _ensure_running(self, nomad_service: NomadService):
         while True:

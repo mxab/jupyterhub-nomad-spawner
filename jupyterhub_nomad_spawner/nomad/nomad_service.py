@@ -1,6 +1,6 @@
 from logging import Logger, LoggerAdapter
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 from attrs import define
 from httpx import AsyncClient
@@ -35,14 +35,13 @@ class NomadService:
     client: AsyncClient
     log: Union[LoggerAdapter, Logger]
 
-    async def create_volume(self, id: str, plugin_id: str):
-        # TODO: add potential uid/gid to parameters
-        # eg. rocketduck
-        #   parameters = {
-        #    uid = "1000"
-        #    gid = "1000"
-        #    mode = "770"
-        #   }
+    async def create_volume(
+        self,
+        id: str,
+        plugin_id: str,
+        parameters: Optional[Dict[str, str]] = None,
+        min_size: Optional[int] = None,
+    ):
         request = CSIVolumeCreateRequest(
             Volumes=[
                 CSIVolume(
@@ -58,10 +57,8 @@ class NomadService:
                             AccessMode="single-node-writer",
                         )
                     ],
-                    
-                    # TODO: configure
-                    RequestedCapacityMin=13421772,
-                    RequestedCapacityMax=134217728 * 2,
+                    Parameters=parameters,
+                    RequestedCapacityMin=min_size,
                 )
             ]
         )
