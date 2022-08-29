@@ -68,6 +68,16 @@ c.NomadSpawner.csi_plugin_ids = ["nfs", "hostpath-plugin0"]
 c.JupyterHub.mem_limit = "2G"
 c.NomadSpawner.common_images = ["jupyter/minimal-notebook:2022-08-20"]
 
+def csi_volume_parameters(spawner):
+    if spawner.user_options["volume_csi_plugin_id"] == "nfs":
+        return {
+            "gid" : "1000",
+            "uid" : "1000"
+        }
+    else:
+        return None
+c.NomadSpawner.csi_volume_parameters = csi_volume_parameters
+
                 EOF
 
 
