@@ -2,7 +2,7 @@
 FROM jupyterhub/jupyterhub as builder
 
 RUN apt update && apt install -y python3-venv
-RUN pip install --upgrade pip pipx
+RUN pip install --upgrade pip pipx && pipx ensurepath
 RUN pipx install poetry
 RUN poetry config virtualenvs.create false
 
