@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jupyterhub-nomad-spawner"
-version = "0.1.0"
+version = "0.0.0"
 description = ""
 authors = ["Max Fröhlich <maxbruchmann@gmail.com>"]
 
@@ -27,8 +27,8 @@ mypy = "^0.961"
 respx = "^0.19.2"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"
 
 
 [tool.poetry.plugins."jupyterhub.spawners"]
@@ -48,3 +48,7 @@ exclude = [
 ]
 [tool.isort]
 profile = "black"
+
+
+[tool.poetry-dynamic-versioning]
+enable = true
