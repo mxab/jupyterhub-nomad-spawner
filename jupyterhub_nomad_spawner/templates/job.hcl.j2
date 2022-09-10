@@ -11,6 +11,11 @@ job "{{ job_name }}" {
     }
     group "nb" {
 
+        {% if policies %}
+        vault {
+            policies = {{ policies  | tojson }}
+        }
+        {% endif %}
         {% if volume_data %}
         volume "{{ volume_data.volume_name }}" {
             type      = "{{ volume_data.type }}"

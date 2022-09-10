@@ -10,10 +10,16 @@ job "jupyter-notebook-123" {
     group "nb" {
 
         
+        
         volume "notebook-data" {
             type      = "csi"
             read_only = false
             source    = "somecsivolumeid"
+
+            
+            attachment_mode = "file-system"
+            access_mode     = "single-node-writer"
+            
         }
         
 

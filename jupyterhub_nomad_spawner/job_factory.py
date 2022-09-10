@@ -38,6 +38,7 @@ class JobData(BaseModel):
     cpu: int = 100
 
     volume_data: Optional[JobVolumeData]
+    policies: Optional[List[str]]
 
 
 def create_job(job_data: JobData) -> str:

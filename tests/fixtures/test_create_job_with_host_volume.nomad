@@ -10,10 +10,13 @@ job "jupyter-notebook-123" {
     group "nb" {
 
         
+        
         volume "notebook-data" {
             type      = "host"
             read_only = false
             source    = "jupyternotebookhostvolume"
+
+            
         }
         
 

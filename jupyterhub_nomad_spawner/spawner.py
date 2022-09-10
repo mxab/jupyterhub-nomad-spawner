@@ -13,7 +13,8 @@ from traitlets import Bool
 from traitlets import Callable as TCallable
 from traitlets import Dict as TDict
 from traitlets import Int as TInt
-from traitlets import List, Unicode
+from traitlets import List as TList
+from traitlets import Unicode
 from traitlets import Union as TUnion
 from traitlets import default
 
@@ -216,7 +217,7 @@ class NomadSpawner(Spawner):
             "JUPYTERHUB_SINGLEUSER_APP",
         ]
 
-    common_images = List(
+    common_images = TList(
         help="""
         A list of images that are pre selectable
         """
@@ -232,13 +233,13 @@ class NomadSpawner(Spawner):
             "jupyter/minimal-notebook",
         ]
 
-    datacenters = List(
+    datacenters = TList(
         help="""
         The list of available datacenters
         """
     ).tag(config=True)
 
-    csi_plugin_ids = List(
+    csi_plugin_ids = TList(
         help="""
         A list of CSI Plugins.
 
@@ -292,6 +293,18 @@ class NomadSpawner(Spawner):
         """,
     ).tag(config=True)
 
+    vault_policies = TUnion(
+        [TCallable(), TList()],
+        help="""
+        When a list of vault policies or a callable that returns a list
+        def vault_policies(spawner):
+            return [
+                "my-vault-policy", f"user-policy-{spawner.user.name}"
+            ]
+        c.NomadSpawner.vault_policies = vault_policies
+        """,
+    ).tag(config=True)
+
     csi_capacity = TInt(
         help="""
         The min csi capacity in bytes
@@ -338,6 +351,12 @@ class NomadSpawner(Spawner):
             if self.user_options.get("volume_type", None):
                 volume_data = await self.create_job_volume_data(nomad_service)
 
+            policies: TList[str] = []
+            if callable(self.vault_policies):
+                policies = self.vault_policies(self)
+            elif self.vault_policies:
+                policies = self.vault_policies
+
             job_hcl = create_job(
                 JobData(
                     job_name=self.job_name,
@@ -350,6 +369,7 @@ class NomadSpawner(Spawner):
                     datacenters=self.user_options["datacenters"],
                     memory=self.user_options["memory"],
                     volume_data=volume_data,
+                    policies=policies,
                 )
             )
 
