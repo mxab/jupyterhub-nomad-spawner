@@ -2,8 +2,8 @@
 FROM jupyterhub/jupyterhub as builder
 
 RUN apt update && apt install -y python3-venv
-RUN pip install --upgrade pip pipx && pipx ensurepath
-RUN pipx install poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+ENV PATH "/root/.local/bin/:$PATH"
 RUN poetry config virtualenvs.create false
 
 RUN mkdir -p /opt/jupyterhub-nomad-spawner/jupyterhub_nomad_spawner
