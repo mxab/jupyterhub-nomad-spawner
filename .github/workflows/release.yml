@@ -13,10 +13,12 @@ jobs:
           python-version: 3.8.13
 
       - name: Run image
-        uses: abatilo/actions-poetry@v2.1.26
+        uses: abatilo/actions-poetry@v2.1.6
         with:
           poetry-version: 1.2.0
       - name: View poetry --help
         run: poetry --version
+      - name: "Add dynamic versioning plugin"
+        run: poetry self add "poetry-dynamic-versioning[plugin]"
       - name: Publish
         run: poetry --build --password=${{ secrets.PYPI_TOKEN }} --username=__token__
