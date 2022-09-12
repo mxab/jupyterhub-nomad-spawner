@@ -115,7 +115,26 @@ c.JupyterHub.named_server_limit_per_user = 3
 c.JupyterHub.authenticator_class = DummyAuthenticator
 
 c.NomadSpawner.datacenters = ["dc1"]
-c.JupyterHub.mem_limit = "2G"
+
+c.NomadSpawner.mem_limit = "2G"
+
+
+c.NomadSpawner.common_images = ["jupyter/minimal-notebook:2022-08-20"]
+
+def csi_volume_parameters(spawner):
+    if spawner.user_options["volume_csi_plugin_id"] == "nfs":
+        return {
+            "gid" : "1000",
+            "uid" : "1000"
+        }
+    else:
+        return None
+c.NomadSpawner.csi_volume_parameters = csi_volume_parameters
+
+
+def vault_policies(spawner):
+    return [f"my-policy-{spawner.user.name}"]
+c.NomadSpawner.vault_policies = vault_policies
 
                 EOF
 
