@@ -21,4 +21,4 @@ jobs:
       - name: "Add dynamic versioning plugin"
         run: poetry self add "poetry-dynamic-versioning[plugin]"
       - name: Publish
-        run: poetry --build --password=${{ secrets.PYPI_TOKEN }} --username=__token__
+        run: poetry publish --build --password=${{ secrets.PYPI_TOKEN }} --username=__token__
