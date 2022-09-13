@@ -1,8 +1,9 @@
 [tool.poetry]
 name = "jupyterhub-nomad-spawner"
 version = "0.0.0"
-description = ""
+description = "A JupyterHub Spawner that launches isolated notebooks as job"
 authors = ["Max Fröhlich <maxbruchmann@gmail.com>"]
+readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.8"

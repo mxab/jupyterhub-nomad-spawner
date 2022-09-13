@@ -1,11 +1,16 @@
 # Nomad Jupyter Spawner
 
+
 > **Warning**
 > This project is currently in beta
 
 Spawns a Jupyter Notebook via Jupyterhub.
 
 Users can select and image, resource and connect it with volumes (csi / host)
+
+```sh
+pip install jupyterhub-nomad-spawner
+```
 
 ## Show Case
 https://user-images.githubusercontent.com/1607547/182332760-b0f96ba2-faa8-47b6-9bd7-db93b8d31356.mp4
