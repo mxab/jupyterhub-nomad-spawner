@@ -18,7 +18,6 @@ https://user-images.githubusercontent.com/1607547/182332760-b0f96ba2-faa8-47b6-9
 
 TODOs:
 - Document setup
-- Extend for policies
 - Namespace support
 
 

@@ -9,13 +9,15 @@ RUN poetry config virtualenvs.create false
 RUN mkdir -p /opt/jupyterhub-nomad-spawner/jupyterhub_nomad_spawner
 
 COPY poetry.lock pyproject.toml /opt/jupyterhub-nomad-spawner/
-RUN touch /opt/jupyterhub-nomad-spawner/jupyterhub_nomad_spawner/__init__.py
+RUN touch /opt/jupyterhub-nomad-spawner/jupyterhub_nomad_spawner/__init__.py /opt/jupyterhub-nomad-spawner/README.md
 
 
 
 WORKDIR /opt/jupyterhub-nomad-spawner
 RUN --mount=type=cache,target=/root/.cache/pypoetry --mount=type=cache,target=/root/.cache/pip poetry install --no-dev -n -vv
 COPY jupyterhub_nomad_spawner /opt/jupyterhub-nomad-spawner/jupyterhub_nomad_spawner
+COPY README.md  /opt/jupyterhub-nomad-spawner/
+
 RUN poetry build -f wheel
 
 
