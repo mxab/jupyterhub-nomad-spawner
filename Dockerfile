@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-FROM jupyterhub/jupyterhub as builder
+FROM jupyterhub/jupyterhub:4.0.0 as builder
 
 RUN apt update && apt upgrade -y && apt install -y python3-venv
 RUN curl -sSL https://install.python-poetry.org | python3 -
@@ -22,7 +22,7 @@ RUN poetry build -f wheel
 
 
 
-FROM jupyterhub/jupyterhub AS jupyterhub
+FROM jupyterhub/jupyterhub:4.0.0 AS jupyterhub
 RUN apt update && apt upgrade -y
 RUN --mount=type=cache,target=/root/.cache/pip python3 -m pip install --upgrade pip
 RUN --mount=type=cache,target=/root/.cache/pip python3 -m pip -v install oauthenticator
