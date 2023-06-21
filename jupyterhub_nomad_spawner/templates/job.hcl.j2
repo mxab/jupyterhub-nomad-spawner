@@ -68,6 +68,7 @@ job "{{ job_name }}" {
 
         service {
             name = "{{ service_name }}"
+            provider = "{{ service_provider }}"
             port = "notebook"
              check {
                 name     = "alive"

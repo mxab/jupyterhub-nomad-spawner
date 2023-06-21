@@ -29,9 +29,13 @@ class NomadServiceConfig(BaseModel):
     tls_config: Optional[NomadTLSConfig] = None
 
 
+class NomadException(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+
 @define
 class NomadService:
-
     client: AsyncClient
     log: Union[LoggerAdapter, Logger]
 
@@ -69,22 +73,20 @@ class NomadService:
             json=create_volume_json,
         )
         if result.is_error:
-            raise Exception(
+            raise NomadException(
                 "Error registering volume."
                 + f" status code: {result.status_code}, content: {result.text}"
             )
         self.log.info("Created volume (status code: %d)", result.status_code)
 
     async def delete_volume(self, id: str):
-
         result = await self.client.post(
             f"/v1/volume/csi/{id}/delete",
         )
         if result.is_error:
-            raise Exception(f"Error deleting volume: {result.text}")
+            raise NomadException(f"Error deleting volume: {result.text}")
 
     async def schedule_job(self, job_hcl: str) -> Tuple[str, str]:
-
         self.log.info("Parsing job: %s", job_hcl)
         job_parse_request = JobsParseRequest(JobHCL=job_hcl, Canonicalize=True)
         parsed_job = await self.client.post(
@@ -93,7 +95,7 @@ class NomadService:
         )
 
         if parsed_job.is_error:
-            raise Exception(f"Error parsing job: {parsed_job.text}")
+            raise NomadException(f"Error parsing job: {parsed_job.text}")
 
         parsed_job_as_dict = parsed_job.json()
         self.log.info("Got parsed job %s", parsed_job_as_dict)
@@ -111,14 +113,14 @@ class NomadService:
             json=register_job_as_dict,
         )
         if job.is_error:
-            raise Exception(f"Error registering job: {job.text}")
+            raise NomadException(f"Error registering job: {job.text}")
 
         return job_id
 
     async def job_status(self, job_id) -> str:
         response = await self.client.get(f"/v1/job/{job_id}")
         if response.is_error:
-            raise Exception(f"Error getting job status: {response.text}")
+            raise NomadException(f"Error getting job status: {response.text}")
 
         job_detail = response.json()
         return job_detail.get("Status", "")
@@ -126,4 +128,16 @@ class NomadService:
     async def delete_job(self, job_id: str):
         response = await self.client.delete(f"/v1/job/{job_id}")
         if response.is_error:
-            raise Exception(f"Error deleting job: {response.text}")
+            raise NomadException(f"Error deleting job: {response.text}")
+
+    async def get_service_address(self, service_name: str) -> Tuple[str, int]:
+        response = await self.client.get(f"/v1/service/{service_name}")
+        if response.is_error:
+            raise NomadException(f"Error reading service: {response.text}")
+
+        services = response.json()
+        if len(services) == 0:
+            raise NomadException(f"Service {service_name} not found")
+        if len(services) > 1:
+            raise NomadException(f"Multiple services found for {service_name}")
+        return str(services[0]["Address"]), int(services[0]["Port"])

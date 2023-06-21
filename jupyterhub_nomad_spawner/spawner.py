@@ -14,7 +14,7 @@ from traitlets import Callable as TCallable
 from traitlets import Dict as TDict
 from traitlets import Int as TInt
 from traitlets import List as TList
-from traitlets import Unicode
+from traitlets import Unicode, Enum as TEnum
 from traitlets import Union as TUnion
 from traitlets import default
 
@@ -314,6 +314,14 @@ class NomadSpawner(Spawner):
         """,
     ).tag(config=True)
 
+    service_provider = TEnum(
+        values=["nomad", "consul"],
+        default_value="nomad",
+        help="""
+        The service provider to use
+        """,
+    ).tag(config=True)
+
     @property
     def csi_volume_name(self) -> str:
         if self.notebook_id:
@@ -327,7 +335,6 @@ class NomadSpawner(Spawner):
         raise ValueError("notebook_id is not set")
 
     async def start(self):
-
         nomad_service_config = build_nomad_config_from_options(self)
         nomad_httpx_client = build_nomad_httpx_client(nomad_service_config)
         nomad_service = NomadService(client=nomad_httpx_client, log=self.log)
@@ -337,7 +344,6 @@ class NomadSpawner(Spawner):
         consul_service = ConsulService(client=consul_httpx_client, log=self.log)
 
         try:
-
             notebook_id: str = hashlib.sha1(
                 f"{self.user.name}:{self.name}".encode("utf-8")
             ).hexdigest()[:10]
@@ -362,6 +368,7 @@ class NomadSpawner(Spawner):
                     job_name=self.job_name,
                     username=self.user.name,
                     notebook_name=self.name,
+                    service_provider=self.service_provider,
                     service_name=self.service_name,
                     env=env,
                     args=args,
@@ -375,8 +382,12 @@ class NomadSpawner(Spawner):
 
             await nomad_service.schedule_job(job_hcl)
             await self._ensure_running(nomad_service=nomad_service)
-
-            service_data = await self.service(consul_service)
+            if self.service_provider == "consul":
+                service_data = await self.address_and_port_from_consul(consul_service)
+            elif self.service_provider == "nomad":
+                service_data = await self.address_and_port_from_nomad(nomad_service)
+            else:
+                raise ValueError("Unknown service provider")
         except Exception as e:
             self.log.exception("Failed to start")
             raise e
@@ -440,8 +451,9 @@ class NomadSpawner(Spawner):
                 await asyncio.sleep(5)
 
     @retry(wait=wait_fixed(3), stop=stop_after_attempt(5))
-    async def service(self, consul_service: ConsulService):
-
+    async def address_and_port_from_consul(
+        self, consul_service: ConsulService
+    ) -> Tuple[str, int]:
         self.log.info("Getting service %s from consul", self.service_name)
         nodes = await consul_service.health_service(self.service_name)
 
@@ -451,8 +463,17 @@ class NomadSpawner(Spawner):
         # address = "host.docker.internal"
         return (address, port)
 
-    async def poll(self):
+    @retry(wait=wait_fixed(3), stop=stop_after_attempt(5))
+    async def address_and_port_from_nomad(
+        self, nomad_service: NomadService
+    ) -> Tuple[str, int]:
+        self.log.info("Getting service %s from nomad", self.service_name)
+        return await nomad_service.get_service_address(self.job_name)
 
+        
+        
+
+    async def poll(self):
         nomad_httpx_client = build_nomad_httpx_client(
             build_nomad_config_from_options(self)
         )
@@ -476,7 +497,6 @@ class NomadSpawner(Spawner):
                 await nomad_httpx_client.aclose()
 
     async def stop(self):
-
         nomad_service_config = build_nomad_config_from_options(self)
         nomad_httpx_client = build_nomad_httpx_client(nomad_service_config)
         nomad_service = NomadService(client=nomad_httpx_client, log=self.log)
@@ -586,7 +606,6 @@ def build_consul_config_from_options(options: NomadSpawner) -> ConsulServiceConf
 
 
 def build_nomad_httpx_client(config: NomadServiceConfig) -> AsyncClient:
-
     verify: Union[bool, ssl.SSLContext] = True
     cert: Optional[Tuple[str, str]] = None
     if config.tls_config:
@@ -612,7 +631,6 @@ def build_nomad_httpx_client(config: NomadServiceConfig) -> AsyncClient:
 
 
 def build_consul_httpx_client(config: ConsulServiceConfig) -> AsyncClient:
-
     verify: Union[bool, ssl.SSLContext] = True
     cert: Optional[Tuple[str, str]] = None
     if config.tls_config:

@@ -21,12 +21,17 @@ class JobVolumeData(BaseModel):
         use_enum_values = True
 
 
-class JobData(BaseModel):
+class ServiceProvider(str, Enum):
+    consul = "consul"
+    nomad = "nomad"
 
+
+class JobData(BaseModel):
     job_name: str
     username: str
     notebook_name: Optional[str] = None
 
+    service_provider: ServiceProvider
     service_name: str
     env: Dict = {}
     args: List = []
@@ -42,7 +47,6 @@ class JobData(BaseModel):
 
 
 def create_job(job_data: JobData) -> str:
-
     env = Environment(
         loader=PackageLoader("jupyterhub_nomad_spawner"), autoescape=select_autoescape()
     )
