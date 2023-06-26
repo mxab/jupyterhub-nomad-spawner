@@ -22,7 +22,7 @@ RUN poetry build -f wheel
 
 
 
-FROM jupyterhub/jupyterhub:4.0.0 AS jupyterhub
+FROM jupyterhub/jupyterhub:4.0.1 AS jupyterhub
 RUN apt update && apt upgrade -y
 RUN --mount=type=cache,target=/root/.cache/pip python3 -m pip install --upgrade pip
 RUN --mount=type=cache,target=/root/.cache/pip python3 -m pip -v install oauthenticator

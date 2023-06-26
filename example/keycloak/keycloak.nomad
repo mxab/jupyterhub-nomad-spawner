@@ -14,7 +14,7 @@ job "keycloak" {
         task "keycloak" {
             driver = "docker"
             config {
-                image = "quay.io/keycloak/keycloak:18.0.0"
+                image = "quay.io/keycloak/keycloak:21.1.1"
                 command = "start-dev"
                 ports = ["http"]
             }
@@ -29,7 +29,14 @@ job "keycloak" {
         service {
             name = "keycloak"
             port = "http"
-            
+            provider = "nomad"
+
+            check {
+                type = "http"
+                path = "/"
+                interval = "10s"
+                timeout = "2s"
+            }
         }
     }
 }

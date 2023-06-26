@@ -36,7 +36,6 @@ job "jupyterhub" {
                 data = <<EOF
 
 NOMAD_ADDR=http://host.docker.internal:4646
-CONSUL_HTTP_ADDR=http://host.docker.internal:8500
     EOF
             }
             template {
@@ -66,7 +65,7 @@ c.JupyterHub.authenticator_class = DummyAuthenticator
 c.NomadSpawner.datacenters = ["dc1", "dc2", "dc3"]
 c.NomadSpawner.csi_plugin_ids = ["nfs", "hostpath-plugin0"]
 c.NomadSpawner.mem_limit = "2G"
-c.NomadSpawner.common_images = ["jupyter/minimal-notebook:2022-08-20"]
+c.NomadSpawner.common_images = ["jupyter/minimal-notebook:2023-06-26"]
 
 def csi_volume_parameters(spawner):
     if spawner.user_options["volume_csi_plugin_id"] == "nfs":
@@ -93,21 +92,28 @@ c.NomadSpawner.csi_volume_parameters = csi_volume_parameters
             name = "jupyter-hub"
             port = "hub"
 
+            provider = "nomad"
+
             check {
                 type     = "tcp"
                 interval = "10s"
                 timeout  = "2s"
             }
 
+
         }
         service {
             name = "jupyter-hub-api"
             port = "api"
+
+            provider = "nomad"
+
             check {
                 type     = "tcp"
                 interval = "10s"
                 timeout  = "2s"
             }
+
 
         }
     }

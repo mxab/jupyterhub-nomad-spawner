@@ -45,6 +45,9 @@ class JobData(BaseModel):
     volume_data: Optional[JobVolumeData]
     policies: Optional[List[str]]
 
+    class Config:
+        use_enum_values = True
+
 
 def create_job(job_data: JobData) -> str:
     env = Environment(
