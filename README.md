@@ -177,3 +177,16 @@ c.NomadSpawner.vault_policies = vault_policies
 
 
 ```
+
+
+## Development
+
+### Setup
+
+Get poetry: https://python-poetry.org/docs/#installation
+
+```sh
+poetry install
+```
+
+### Release
