@@ -12,9 +12,10 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 from traitlets import Bool
 from traitlets import Callable as TCallable
 from traitlets import Dict as TDict
+from traitlets import Enum as TEnum
 from traitlets import Int as TInt
 from traitlets import List as TList
-from traitlets import Unicode, Enum as TEnum
+from traitlets import Unicode
 from traitlets import Union as TUnion
 from traitlets import default
 
@@ -334,6 +335,13 @@ class NomadSpawner(Spawner):
             return f"{self.job_name}"
         raise ValueError("notebook_id is not set")
 
+    job_template_path = Unicode(
+        help="""
+        The path to the job template file with jinja2 placeholders
+        see templates/job.hcl.j2
+    """
+    ).tag(config=True)
+
     async def start(self):
         nomad_service_config = build_nomad_config_from_options(self)
         nomad_httpx_client = build_nomad_httpx_client(nomad_service_config)
@@ -363,8 +371,9 @@ class NomadSpawner(Spawner):
             elif self.vault_policies:
                 policies = self.vault_policies
 
+            self.log.info("scheduling job %s", self.job_name)
             job_hcl = create_job(
-                JobData(
+                job_data=JobData(
                     job_name=self.job_name,
                     username=self.user.name,
                     notebook_name=self.name,
@@ -377,7 +386,8 @@ class NomadSpawner(Spawner):
                     memory=self.user_options["memory"],
                     volume_data=volume_data,
                     policies=policies,
-                )
+                ),
+                job_template_path=self.job_template_path,
             )
 
             await nomad_service.schedule_job(job_hcl)
@@ -469,9 +479,6 @@ class NomadSpawner(Spawner):
     ) -> Tuple[str, int]:
         self.log.info("Getting service %s from nomad", self.service_name)
         return await nomad_service.get_service_address(self.job_name)
-
-        
-        
 
     async def poll(self):
         nomad_httpx_client = build_nomad_httpx_client(

@@ -1,7 +1,14 @@
+import os
 from enum import Enum
 from typing import Dict, List, Optional
 
-from jinja2 import Environment, PackageLoader, select_autoescape
+from jinja2 import (
+    BaseLoader,
+    Environment,
+    FileSystemLoader,
+    PackageLoader,
+    select_autoescape,
+)
 from pydantic import BaseModel
 
 
@@ -49,12 +56,21 @@ class JobData(BaseModel):
         use_enum_values = True
 
 
-def create_job(job_data: JobData) -> str:
-    env = Environment(
-        loader=PackageLoader("jupyterhub_nomad_spawner"), autoescape=select_autoescape()
-    )
+def create_job(job_data: JobData, job_template_path: Optional[str] = None) -> str:
+    # if present, split up and use head as filesystem loader and tail as template name
+    loader: BaseLoader
 
-    template = env.get_template("job.hcl.j2")
+    if job_template_path:
+        head_tail = os.path.split(job_template_path)
+        loader = FileSystemLoader(head_tail[0])
+        template_name = head_tail[1]
+
+    else:
+        loader = PackageLoader("jupyterhub_nomad_spawner")
+        template_name = "job.hcl.j2"
+    env = Environment(loader=loader, autoescape=select_autoescape())
+
+    template = env.get_template(template_name)
     job_hcl = template.render(**job_data.dict())
 
     return job_hcl

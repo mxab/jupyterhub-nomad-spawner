@@ -1,0 +1,93 @@
+job "{{ job_name }}" {
+
+    type = "service"
+    datacenters = {{ datacenters | tojson}}
+
+    meta {
+        jupyterhub_user = "{{ username }}"
+        {% if notebook_name %}
+        jupyterhub_notebook = "{{ notebook_name }}"
+        {% endif %}
+    }
+    group "nb" {
+
+        {% if policies %}
+        vault {
+            policies = {{ policies  | tojson }}
+        }
+        {% endif %}
+        {% if volume_data %}
+        volume "{{ volume_data.volume_name }}" {
+            type      = "{{ volume_data.type }}"
+            read_only = false
+            source    = "{{ volume_data.source }}"
+
+            {% if volume_data.type == "csi" %}
+            attachment_mode = "file-system"
+            access_mode     = "single-node-writer"
+            {% endif %}
+        }
+        {% endif %}
+
+        network {
+            port "notebook" {
+                to = 8888
+            }
+        }
+
+        task "nb" {
+            driver = "docker"
+
+            config {
+                image = "{{ image }}"
+                ports = [ "notebook" ]
+
+                args = {{ args | tojson }}
+            }
+            env {
+                {% for key, value in env|dictsort %}
+                {{ key }} = {{ value | tojson}}
+                {% endfor %}
+                JUPYTER_ENABLE_LAB="yes"
+                # GRANT_SUDO="yes"
+            }
+
+            resources {
+                cpu    = {{ cpu }}
+                memory = {{ memory }}
+            }
+
+            {% if volume_data %}
+            volume_mount {
+                volume      = "{{ volume_data.volume_name }}"
+                destination = "{{ volume_data.destination }}"
+                read_only   = false
+            }
+            {% endif %}
+
+            template {
+                data = <<-EOH
+                [[ with nomadVar "openai" ]]
+                OPENAI_AI_KEY=[[ .openai_ai_key ]]
+                [[ end ]]
+                EOH
+                destination = "secrets/openai.env"
+                env         = true
+                left_delimiter = "[["
+                right_delimiter = "]]"
+            }
+        }
+
+        service {
+            name = "{{ service_name }}"
+            provider = "{{ service_provider }}"
+            port = "notebook"
+             check {
+                name     = "alive"
+                type     = "tcp"
+                interval = "10s"
+                timeout  = "2s"
+            }
+        }
+    }
+}
