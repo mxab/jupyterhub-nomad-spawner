@@ -1,7 +1,8 @@
 job "{{ job_name }}" {
 
     type = "service"
-    datacenters = {{ datacenters | tojson}}
+
+    datacenters = {{ datacenters | tojson }}
 
     meta {
         jupyterhub_user = "{{ username }}"
@@ -49,7 +50,6 @@ job "{{ job_name }}" {
                 {{ key }} = {{ value | tojson}}
                 {% endfor %}
                 JUPYTER_ENABLE_LAB="yes"
-                # GRANT_SUDO="yes"
             }
 
             resources {
@@ -68,7 +68,7 @@ job "{{ job_name }}" {
             template {
                 data = <<-EOH
                 [[ with nomadVar "openai" ]]
-                OPENAI_AI_KEY=[[ .openai_ai_key ]]
+                OPENAI_API_KEY=[[ .openai_api_key ]]
                 [[ end ]]
                 EOH
                 destination = "secrets/openai.env"

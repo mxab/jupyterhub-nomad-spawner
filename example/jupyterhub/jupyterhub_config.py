@@ -22,6 +22,7 @@ c.JupyterHub.authenticator_class = DummyAuthenticator
 c.NomadSpawner.datacenters = ["dc1", "dc2", "dc3"]
 c.NomadSpawner.csi_plugin_ids = ["nfs", "hostpath-plugin0"]
 c.NomadSpawner.mem_limit = "2G"
+
 c.NomadSpawner.common_images = ["jupyter/minimal-notebook:2023-06-26"]
 
 
