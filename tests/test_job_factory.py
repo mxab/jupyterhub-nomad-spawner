@@ -27,7 +27,6 @@ def update_fixture(test: str, job: str):
 
 
 def test_create_job(update_job_fixtures: bool):
-
     job = create_job(
         JobData(
             job_name="jupyter-notebook-123",
@@ -40,6 +39,7 @@ def test_create_job(update_job_fixtures: bool):
             image="jupyter/minimal-notebook",
             cpu=500,
             memory=512,
+            service_provider="consul",
         )
     )
     if update_job_fixtures:
@@ -48,7 +48,6 @@ def test_create_job(update_job_fixtures: bool):
 
 
 def test_create_job_with_host_volume(update_job_fixtures: bool):
-
     job = create_job(
         JobData(
             job_name="jupyter-notebook-123",
@@ -60,6 +59,7 @@ def test_create_job_with_host_volume(update_job_fixtures: bool):
             image="jupyter/minimal-notebook",
             cpu=500,
             memory=512,
+            service_provider="consul",
             volume_data=JobVolumeData(
                 type=VolumeType.host,
                 source="jupyternotebookhostvolume",
@@ -73,7 +73,6 @@ def test_create_job_with_host_volume(update_job_fixtures: bool):
 
 
 def test_create_job_with_csi_volume(update_job_fixtures: bool):
-
     job = create_job(
         JobData(
             job_name="jupyter-notebook-123",
@@ -85,6 +84,7 @@ def test_create_job_with_csi_volume(update_job_fixtures: bool):
             image="jupyter/minimal-notebook",
             cpu=500,
             memory=512,
+            service_provider="consul",
             volume_data=JobVolumeData(
                 type=VolumeType.csi,
                 source="somecsivolumeid",
@@ -95,3 +95,28 @@ def test_create_job_with_csi_volume(update_job_fixtures: bool):
     if update_job_fixtures:
         update_fixture("test_create_job_with_csi_volume", job)
     assert job == fixture_content("test_create_job_with_csi_volume")
+
+
+def test_create_job_with_ephemeral_disk(update_job_fixtures: bool):
+    job = create_job(
+        JobData(
+            job_name="jupyter-notebook-123",
+            service_name="jupyter-notebook-123",
+            username="myname",
+            env={"foo": "bar"},
+            datacenters=["dc1", "dc2"],
+            args=["--arg1", "--arg2"],
+            image="jupyter/minimal-notebook",
+            cpu=500,
+            memory=512,
+            service_provider="consul",
+            volume_data=JobVolumeData(
+                type=VolumeType.ephemeral_disk,
+                destination="/home/jovyan/work",
+                ephemeral_disk_size=1000,
+            ),
+        )
+    )
+    if update_job_fixtures:
+        update_fixture("test_create_job_with_ephemeral_disk", job)
+    assert job == fixture_content("test_create_job_with_ephemeral_disk")

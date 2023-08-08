@@ -15,12 +15,11 @@ job "jupyter-notebook-123" {
             type      = "csi"
             read_only = false
             source    = "somecsivolumeid"
-
-            
             attachment_mode = "file-system"
             access_mode     = "single-node-writer"
             
         }
+        
         
 
         network {
@@ -37,6 +36,9 @@ job "jupyter-notebook-123" {
                 ports = [ "notebook" ]
 
                 args = ["--arg1", "--arg2"]
+
+                
+
             }
             env {
                 
@@ -62,6 +64,7 @@ job "jupyter-notebook-123" {
 
         service {
             name = "jupyter-notebook-123"
+            provider = "consul"
             port = "notebook"
              check {
                 name     = "alive"

@@ -15,6 +15,7 @@ from pydantic import BaseModel
 class VolumeType(str, Enum):
     host = "host"
     csi = "csi"
+    ephemeral_disk = "ephemeral_disk"
 
 
 class JobVolumeData(BaseModel):
@@ -23,6 +24,8 @@ class JobVolumeData(BaseModel):
 
     volume_name: str = "notebook-data"
     destination: str = "/home/jovyan/work"
+
+    ephemeral_disk_size: Optional[int] = None
 
     class Config:
         use_enum_values = True

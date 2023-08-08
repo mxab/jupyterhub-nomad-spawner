@@ -12,7 +12,6 @@ job "jupyter-notebook-123" {
     group "nb" {
 
         
-        
 
         network {
             port "notebook" {
@@ -28,6 +27,9 @@ job "jupyter-notebook-123" {
                 ports = [ "notebook" ]
 
                 args = ["--arg1", "--arg2"]
+
+                
+
             }
             env {
                 
@@ -49,6 +51,7 @@ job "jupyter-notebook-123" {
 
         service {
             name = "jupyter-notebook-123"
+            provider = "consul"
             port = "notebook"
              check {
                 name     = "alive"

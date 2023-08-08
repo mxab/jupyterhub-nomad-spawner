@@ -315,6 +315,16 @@ class NomadSpawner(Spawner):
         """,
     ).tag(config=True)
 
+    ephemeral_disk_size = TInt(
+        help="""
+        The ephemeral disk size in bytes
+        e.g.
+
+        c.NomadSpawner.ephemeral_disk_size = 4096
+        """,
+        default_value=1024,
+    ).tag(config=True)
+
     service_provider = TEnum(
         values=["nomad", "consul"],
         default_value="nomad",
@@ -434,6 +444,12 @@ class NomadSpawner(Spawner):
                 type="host",
                 destination=self.user_options["volume_destination"],
                 source=self.user_options["volume_source"],
+            )
+        elif volume_type == "ephemeral_disk":
+            volume_data = JobVolumeData(
+                type="ephemeral_disk",
+                destination=self.user_options["volume_destination"],
+                ephemeral_disk_size=self.ephemeral_disk_size,
             )
 
         return volume_data

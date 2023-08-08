@@ -35,4 +35,4 @@ def csi_volume_parameters(spawner):
 
 c.NomadSpawner.csi_volume_parameters = csi_volume_parameters
 
-c.NomadSpawner.job_template_path = "/local/job.hcl.j2"
+# c.NomadSpawner.job_template_path = "/local/job.hcl.j2"

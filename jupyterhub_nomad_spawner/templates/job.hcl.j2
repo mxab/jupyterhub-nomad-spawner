@@ -16,17 +16,26 @@ job "{{ job_name }}" {
             policies = {{ policies  | tojson }}
         }
         {% endif %}
-        {% if volume_data %}
+        {%- if volume_data %}
+        {%- if volume_data.type == "ephemeral_disk" %}
+        ephemeral_disk {
+            migrate = true
+            size    = {{ volume_data.ephemeral_disk_size }}
+            sticky  = true
+        }
+        {% else %}
+
         volume "{{ volume_data.volume_name }}" {
             type      = "{{ volume_data.type }}"
             read_only = false
             source    = "{{ volume_data.source }}"
 
-            {% if volume_data.type == "csi" %}
+            {%- if volume_data.type == "csi" %}
             attachment_mode = "file-system"
             access_mode     = "single-node-writer"
             {% endif %}
         }
+        {% endif %}
         {% endif %}
 
         network {
@@ -43,6 +52,13 @@ job "{{ job_name }}" {
                 ports = [ "notebook" ]
 
                 args = {{ args | tojson }}
+
+                {% if volume_data and volume_data.type == "ephemeral_disk" %}
+                volumes = [
+                    "alloc/data/notebook:{{ volume_data.destination }}"
+                ]
+                {% endif %}
+
             }
             env {
                 {% for key, value in env|dictsort %}
@@ -57,7 +73,7 @@ job "{{ job_name }}" {
                 memory = {{ memory }}
             }
 
-            {% if volume_data %}
+            {% if volume_data and not volume_data.type == "ephemeral_disk" %}
             volume_mount {
                 volume      = "{{ volume_data.volume_name }}"
                 destination = "{{ volume_data.destination }}"

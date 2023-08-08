@@ -10,11 +10,10 @@ job "jupyter-notebook-123" {
     group "nb" {
 
         
-        
-        volume "notebook-data" {
-            type      = "host"
-            read_only = false
-            source    = "jupyternotebookhostvolume"
+        ephemeral_disk {
+            migrate = true
+            size    = 1000
+            sticky  = true
         }
         
         
@@ -35,6 +34,10 @@ job "jupyter-notebook-123" {
                 args = ["--arg1", "--arg2"]
 
                 
+                volumes = [
+                    "alloc/data/notebook:/home/jovyan/work"
+                ]
+                
 
             }
             env {
@@ -50,12 +53,6 @@ job "jupyter-notebook-123" {
                 memory = 512
             }
 
-            
-            volume_mount {
-                volume      = "notebook-data"
-                destination = "/home/jovyan/work"
-                read_only   = false
-            }
             
         }
 
