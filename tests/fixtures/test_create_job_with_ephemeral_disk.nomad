@@ -35,7 +35,7 @@ job "jupyter-notebook-123" {
 
                 
                 volumes = [
-                    "alloc/data/notebook:/home/jovyan/work"
+                    "../alloc/data/notebook:/home/jovyan/work"
                 ]
                 
 

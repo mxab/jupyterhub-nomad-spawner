@@ -55,7 +55,7 @@ job "{{ job_name }}" {
 
                 {% if volume_data and volume_data.type == "ephemeral_disk" %}
                 volumes = [
-                    "alloc/data/notebook:{{ volume_data.destination }}"
+                    "../alloc/data/notebook:{{ volume_data.destination }}"
                 ]
                 {% endif %}
 
