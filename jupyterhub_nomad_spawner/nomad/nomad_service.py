@@ -73,10 +73,11 @@ class NomadService:
             json=create_volume_json,
         )
         if result.is_error:
-            raise NomadException(
-                "Error registering volume."
-                + f" status code: {result.status_code}, content: {result.text}"
-            )
+            if 'ErrorCode: "AccessPointAlreadyExists"' not in result.text:
+                raise NomadException(
+                    "Error registering volume."
+                    + f" status code: {result.status_code}, content: {result.text}"
+                )
         self.log.info("Created volume (status code: %d)", result.status_code)
 
     async def delete_volume(self, id: str):
