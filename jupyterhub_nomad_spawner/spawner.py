@@ -1,10 +1,11 @@
 import asyncio
 import hashlib
 import os
+import re
 import ssl
 import typing as t
 from typing import Dict, Optional, Tuple, Union
-
+from textwrap import dedent
 from httpx import AsyncClient
 from jupyterhub.spawner import Spawner
 from pydantic import BaseModel
@@ -24,13 +25,20 @@ from jupyterhub_nomad_spawner.consul.consul_service import (
     ConsulServiceConfig,
     ConsulTLSConfig,
 )
-from jupyterhub_nomad_spawner.job_factory import JobData, JobVolumeData, create_job
+from jupyterhub_nomad_spawner.job_factory import (
+    JobData,
+    JobVolumeData,
+    create_job,
+    create_job_name,
+)
 from jupyterhub_nomad_spawner.job_options_factory import create_form
 from jupyterhub_nomad_spawner.nomad.nomad_service import (
     NomadService,
     NomadServiceConfig,
     NomadTLSConfig,
 )
+
+RFC_1123_2_1_NAME_PATTERN = re.compile("^[a-z0-9\-]+$")
 
 
 class CreateJobResponse(BaseModel):
@@ -253,7 +261,7 @@ class NomadSpawner(Spawner):
 
     base_job_name = Unicode(
         help="""
-        The base name of the job. Will be concated with -<notebook_id>
+        The base name of the job. Used as prefix with the name_template
         """
     ).tag(config=True)
 
@@ -276,7 +284,7 @@ class NomadSpawner(Spawner):
     @property
     def job_name(self) -> str:
         if self.notebook_id:
-            return f"{self.base_job_name}-{self.notebook_id}"
+            return self._render_name_template()
         raise ValueError("notebook_id is not set")
 
     base_csi_volume_name = Unicode(
@@ -363,6 +371,47 @@ class NomadSpawner(Spawner):
         see templates/job.hcl.j2
     """
     ).tag(config=True)
+
+    name_template = Unicode(
+        config=True,
+        help=dedent(
+            """
+            Name of the container or service: with {{prefix}}, {{username}}, {{servername}} and {{notebookid}} replacements.
+            It is important to include {{servername}} if JupyterHub's "named
+            servers" are enabled (``JupyterHub.allow_named_servers = True``).
+            The default name_template is "{{prefix}}-{{notebookid}}". 
+            """
+        ),
+    )
+
+    @default("name_template")
+    def _default_name_template(self):
+        return "{{prefix}}-{{notebookid}}"
+
+    def _render_name_template(self):
+        data = {
+            "prefix": self.base_job_name,
+            "username": self.user.name,
+            "servername": self.name,
+            "notebookid": self.notebook_id,
+        }
+        job_name = create_job_name(self.name_template, data=data)
+
+        job_name_default = create_job_name(self._default_name_template(), data=data)
+
+        if len(job_name) >= 64:
+            # character limit of nomad
+            message = f"Job name exceeds character limit of 63 characters. Fallback to default template for {job_name=} with {job_name_default=}"
+        elif not re.match(pattern=RFC_1123_2_1_NAME_PATTERN, string=job_name):
+            # does not match required pattern
+            message = f"Job name does not match required pattern ^[a-z0-9\-]+$. Fallback to default template for {job_name=} with {job_name_default=}"
+        else:
+            # name matches requirements
+            return job_name
+
+        self.log.warning(message)
+
+        return job_name_default
 
     async def job_factory(self, nomad_service) -> str:
         """Factory for the nomad jobs to spawn.

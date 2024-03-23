@@ -131,3 +131,28 @@ async def test_spawner_job_factory(user, hub, config):
     job = await spawner.job_factory(nomad_service)
 
     assert job == fixture_content("test_create_job.v2")
+
+
+def test_name_rendering_default(user, hub, config):
+    # reset to base as fixture uses different base name
+    config.NomadSpawner.base_job_name = "jupyterhub-notebook"
+
+    spawner = NomadSpawner(user=user, hub=hub, config=config)
+
+    spawner.notebook_id = "123"
+
+    assert spawner._render_name_template() == "jupyterhub-notebook-123"
+
+
+def test_name_rendering_with_custom_template(user, hub, config):
+    config.NomadSpawner.name_template = "{{username}}-{{servername}}"
+
+    # easier than patching or creating an orm spawner
+    class NamedSpawner(NomadSpawner):
+        name: str = "testing-server"
+
+    spawner = NamedSpawner(user=user, hub=hub, config=config)
+
+    spawner.notebook_id = "123"
+
+    assert spawner._render_name_template() == "myname-testing-server"
