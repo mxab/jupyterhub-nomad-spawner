@@ -261,6 +261,18 @@ class NomadSpawner(Spawner):
     def _default_base_job_name(self):
         return "jupyterhub-notebook"
 
+    auto_remove_jobs = Bool(
+        help="""
+        Specifies whether the job should be stopped and removed immediately (`auto_remove_jobs=True`) or 
+        deferred to the Nomad garbage collector (`auto_remove_jobs=False`).
+        Defaults to False.
+        """
+    ).tag(config=True)
+
+    @default("auto_remove_jobs")
+    def _default_auto_remove_jobs(self):
+        return False
+
     @property
     def job_name(self) -> str:
         if self.notebook_id:
@@ -525,7 +537,7 @@ class NomadSpawner(Spawner):
         nomad_service = NomadService(client=nomad_httpx_client, log=self.log)
 
         try:
-            await nomad_service.delete_job(self.job_name)
+            await nomad_service.delete_job(self.job_name, purge=self.auto_remove_jobs)
             self.clear_state()
         except Exception:
             self.log.exception("Failed to stop")

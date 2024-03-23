@@ -126,8 +126,9 @@ class NomadService:
         job_detail = response.json()
         return job_detail.get("Status", "")
 
-    async def delete_job(self, job_id: str):
-        response = await self.client.delete(f"/v1/job/{job_id}")
+    async def delete_job(self, job_id: str, purge: Optional[bool] = None):
+        params = {"purge": purge} if purge else None
+        response = await self.client.delete(f"/v1/job/{job_id}", params=params)
         if response.is_error:
             raise NomadException(f"Error deleting job: {response.text}")
 
