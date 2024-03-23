@@ -80,7 +80,8 @@ async def test_lookup_service(respx_mock):
     )
     async with httpx.AsyncClient(base_url="http://localhost:4646") as client:
         service = NomadService(client=client, log=logging.getLogger("test"))
-        (address, port) = await service.get_service_address(service_name="my-notebook-service-123")
+        (address, port) = await service.get_service_address(
+            service_name="my-notebook-service-123"
+        )
         assert address == "127.0.0.1"
         assert port == 29702
-

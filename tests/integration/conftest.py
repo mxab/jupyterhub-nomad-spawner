@@ -136,7 +136,6 @@ def hub(hub_serivce) -> Hub:
 @pytest_asyncio.fixture
 @retry(stop=stop_after_attempt(4), wait=wait_fixed(5))
 async def hub_serivce(hub_job, consul_process):
-
     async with httpx.AsyncClient(base_url="http://localhost:8500") as client:
         r = await client.get("/v1/health/service/jupyter-hub-api")
         body = r.json()
