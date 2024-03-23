@@ -372,7 +372,6 @@ class NomadSpawner(Spawner):
 
     @default("job_factory")
     async def _default_job_factory(self, nomad_service) -> str:
-
         volume_data: Optional[JobVolumeData] = None
 
         if self.user_options.get("volume_type", None):

@@ -1,6 +1,3 @@
-import logging
-from pathlib import Path
-
 from jupyterhub_nomad_spawner.job_factory import (
     JobData,
     JobVolumeData,
@@ -8,22 +5,7 @@ from jupyterhub_nomad_spawner.job_factory import (
     create_job,
 )
 
-log = logging.getLogger(__name__)
-
-
-def fixture_path(test: str):
-    return f"{Path(__file__).parent}/fixtures/{test}.nomad"
-
-
-def fixture_content(test: str):
-    return open(fixture_path(test), "r").read()
-
-
-def update_fixture(test: str, job: str):
-    log.warning("Updating job fixtures")
-    f = open(fixture_path(test), "w")
-    f.write(job)
-    f.close()
+from .utils import fixture_content, update_fixture
 
 
 def test_create_job(update_job_fixtures: bool):
