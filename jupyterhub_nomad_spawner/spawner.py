@@ -364,14 +364,11 @@ class NomadSpawner(Spawner):
     """
     ).tag(config=True)
 
-    job_factory = TCallable(
-        help="""
-        Constructs a nomad job as hcl str.
-        """
-    ).tag(config=True)
+    async def job_factory(self, nomad_service) -> str:
+        """Factory for the nomad jobs to spawn.
 
-    @default("job_factory")
-    async def _default_job_factory(self, nomad_service) -> str:
+        To customize this factory overwrite this method with your own logic.
+        """
         volume_data: Optional[JobVolumeData] = None
 
         if self.user_options.get("volume_type", None):
@@ -383,7 +380,6 @@ class NomadSpawner(Spawner):
         elif self.vault_policies:
             policies = self.vault_policies
 
-        self.log.info("scheduling job %s", self.job_name)
         job_hcl = create_job(
             job_data=JobData(
                 job_name=self.job_name,
@@ -423,14 +419,18 @@ class NomadSpawner(Spawner):
 
             job_hcl = await self.job_factory(nomad_service)
 
+            self.log.info("scheduling job %s", self.job_name)
             await nomad_service.schedule_job(job_hcl)
             await self._ensure_running(nomad_service=nomad_service)
+
+            ###
             if self.service_provider == "consul":
                 service_data = await self.address_and_port_from_consul(consul_service)
             elif self.service_provider == "nomad":
                 service_data = await self.address_and_port_from_nomad(nomad_service)
             else:
                 raise ValueError("Unknown service provider")
+            ###
         except Exception as e:
             self.log.exception("Failed to start")
             raise e
