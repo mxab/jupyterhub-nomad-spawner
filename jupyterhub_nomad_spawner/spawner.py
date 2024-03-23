@@ -405,10 +405,6 @@ class NomadSpawner(Spawner):
         nomad_httpx_client = build_nomad_httpx_client(nomad_service_config)
         nomad_service = NomadService(client=nomad_httpx_client, log=self.log)
 
-        consul_service_config = build_consul_config_from_options(self)
-        consul_httpx_client = build_consul_httpx_client(consul_service_config)
-        consul_service = ConsulService(client=consul_httpx_client, log=self.log)
-
         try:
             notebook_id: str = hashlib.sha1(
                 f"{self.user.name}:{self.name}".encode("utf-8")
@@ -423,14 +419,7 @@ class NomadSpawner(Spawner):
             await nomad_service.schedule_job(job_hcl)
             await self._ensure_running(nomad_service=nomad_service)
 
-            ###
-            if self.service_provider == "consul":
-                service_data = await self.address_and_port_from_consul(consul_service)
-            elif self.service_provider == "nomad":
-                service_data = await self.address_and_port_from_nomad(nomad_service)
-            else:
-                raise ValueError("Unknown service provider")
-            ###
+            service_data = await self.fetch_from_service_provider(nomad_service)
         except Exception as e:
             self.log.exception("Failed to start")
             raise e
@@ -438,9 +427,27 @@ class NomadSpawner(Spawner):
         finally:
             if nomad_httpx_client is not None:
                 await nomad_httpx_client.aclose()
-            if consul_httpx_client is not None:
-                await consul_httpx_client.aclose()
         return service_data
+
+    async def fetch_from_service_provider(self, nomad_service) -> Tuple[str, int]:
+        """Helper to fetch spawned server's IP and port from the service provider (nomad/consul).
+
+        This method is called from `start`, after the server is running.
+        If your setup differs, you may wish to overwrite it with some custom logic.
+        """
+        if self.service_provider == "nomad":
+            return await self.address_and_port_from_nomad(nomad_service)
+
+        elif self.service_provider == "consul":
+            consul_service_config = build_consul_config_from_options(self)
+            async with build_consul_httpx_client(
+                consul_service_config
+            ) as consul_httpx_client:
+                consul_service = ConsulService(client=consul_httpx_client, log=self.log)
+
+                return await self.address_and_port_from_consul(consul_service)
+        else:
+            raise ValueError("Unknown service provider")
 
     async def create_job_volume_data(self, nomad_service: NomadService):
         volume_type = self.user_options["volume_type"]
