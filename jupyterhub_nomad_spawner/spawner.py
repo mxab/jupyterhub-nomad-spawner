@@ -575,6 +575,18 @@ class NomadSpawner(Spawner):
         self.log.info("Getting service %s from nomad", self.service_name)
         return await nomad_service.get_service_address(self.job_name)
 
+    @retry(wait=wait_fixed(3), stop=stop_after_attempt(5))
+    async def address_and_port_of_consul_service_from_nomad(
+        self, nomad_service: NomadService
+    ) -> Tuple[str, int]:
+        self.log.info("Getting allocation id of %s from nomad", self.service_name)
+        allocations = await nomad_service.job_allocations(self.job_name)
+
+        # there should only be one allocation
+        return await nomad_service.get_service_of_allocation(
+            allocation_id=allocations[0]["ID"]
+        )
+
     async def poll(self):
         nomad_httpx_client = build_nomad_httpx_client(
             build_nomad_config_from_options(self)
