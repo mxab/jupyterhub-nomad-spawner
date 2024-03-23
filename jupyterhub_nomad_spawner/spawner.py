@@ -551,10 +551,8 @@ class NomadSpawner(Spawner):
         super().clear_state()
         self.notebook_id = None
 
-    @property
-    def options_form(self) -> str:
-        """return the options for the form"""
-
+    @default("options_form")
+    def _default_options_form(self):
         return create_form(
             datacenters=self.datacenters,
             common_images=self.common_images,
@@ -566,15 +564,15 @@ class NomadSpawner(Spawner):
     def memory_limit_in_mb(self) -> Optional[int]:
         return self.mem_limit / (1024 * 1024) if self.mem_limit else None
 
-    def options_from_form(self, formdata):
+    def _default_options_from_form(self, form_data):
         options = {}
-        options["image"] = formdata["image"][0]
-        options["datacenters"] = formdata["datacenters"]
-        options["memory"] = int(formdata["memory"][0])
-        options["volume_type"] = formdata["volume_type"][0]
-        options["volume_source"] = formdata.get("volume_source", [None])[0]
-        options["volume_destination"] = formdata.get("volume_destination", [None])[0]
-        options["volume_csi_plugin_id"] = formdata.get("volume_csi_plugin_id", [None])[
+        options["image"] = form_data["image"][0]
+        options["datacenters"] = form_data["datacenters"]
+        options["memory"] = int(form_data["memory"][0])
+        options["volume_type"] = form_data["volume_type"][0]
+        options["volume_source"] = form_data.get("volume_source", [None])[0]
+        options["volume_destination"] = form_data.get("volume_destination", [None])[0]
+        options["volume_csi_plugin_id"] = form_data.get("volume_csi_plugin_id", [None])[
             0
         ]
 
