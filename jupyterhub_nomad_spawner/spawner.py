@@ -364,6 +364,47 @@ class NomadSpawner(Spawner):
     """
     ).tag(config=True)
 
+    job_factory = TCallable(
+        help="""
+        Constructs a nomad job as hcl str.
+        """
+    ).tag(config=True)
+
+    @default("job_factory")
+    async def _default_job_factory(self, nomad_service) -> str:
+
+        volume_data: Optional[JobVolumeData] = None
+
+        if self.user_options.get("volume_type", None):
+            volume_data = await self.create_job_volume_data(nomad_service)
+
+        policies: TList[str] = []
+        if callable(self.vault_policies):
+            policies = self.vault_policies(self)
+        elif self.vault_policies:
+            policies = self.vault_policies
+
+        self.log.info("scheduling job %s", self.job_name)
+        job_hcl = create_job(
+            job_data=JobData(
+                job_name=self.job_name,
+                username=self.user.name,
+                notebook_name=self.name,
+                service_provider=self.service_provider,
+                service_name=self.service_name,
+                env=self.get_env(),
+                args=self.get_args(),
+                image=self.user_options["image"],
+                datacenters=self.user_options["datacenters"],
+                memory=self.user_options["memory"],
+                volume_data=volume_data,
+                policies=policies,
+            ),
+            job_template_path=self.job_template_path,
+        )
+
+        return job_hcl
+
     async def start(self):
         nomad_service_config = build_nomad_config_from_options(self)
         nomad_httpx_client = build_nomad_httpx_client(nomad_service_config)
@@ -378,39 +419,10 @@ class NomadSpawner(Spawner):
                 f"{self.user.name}:{self.name}".encode("utf-8")
             ).hexdigest()[:10]
             self.notebook_id = notebook_id
+
             self.log.info("server name: %s", self.name)
-            env = self.get_env()
-            args = self.get_args()
 
-            volume_data: Optional[JobVolumeData] = None
-
-            if self.user_options.get("volume_type", None):
-                volume_data = await self.create_job_volume_data(nomad_service)
-
-            policies: TList[str] = []
-            if callable(self.vault_policies):
-                policies = self.vault_policies(self)
-            elif self.vault_policies:
-                policies = self.vault_policies
-
-            self.log.info("scheduling job %s", self.job_name)
-            job_hcl = create_job(
-                job_data=JobData(
-                    job_name=self.job_name,
-                    username=self.user.name,
-                    notebook_name=self.name,
-                    service_provider=self.service_provider,
-                    service_name=self.service_name,
-                    env=env,
-                    args=args,
-                    image=self.user_options["image"],
-                    datacenters=self.user_options["datacenters"],
-                    memory=self.user_options["memory"],
-                    volume_data=volume_data,
-                    policies=policies,
-                ),
-                job_template_path=self.job_template_path,
-            )
+            job_hcl = await self.job_factory(nomad_service)
 
             await nomad_service.schedule_job(job_hcl)
             await self._ensure_running(nomad_service=nomad_service)
