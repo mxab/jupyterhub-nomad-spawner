@@ -46,6 +46,21 @@ def user(hub):
     return MockUser(hub=hub)
 
 
+@pytest.fixture
+def config():
+    cfg = Config()
+    cfg.NomadSpawner.base_job_name = "jupyter-notebook"
+    cfg.NomadSpawner.service_provider = "consul"
+
+    # slim down env vars to avoid test pollution by the host config
+    cfg.NomadSpawner.env_keep = [
+        "LANG",
+        "LC_ALL",
+        "JUPYTERHUB_SINGLEUSER_APP",
+    ]
+    return cfg
+
+
 def test_spawner_auto_remove_default(user):
     cfg = Config()
     cfg.NomadSpawner.auto_remove_jobs = False
@@ -67,19 +82,8 @@ def test_spawner_auto_remove_set(user, config):
 
 # @patch("jupyterhub_nomad_spawner.spawner.NomadSpawner.get_env",**{'method.return_value': {}})
 @pytest.mark.asyncio
-async def test_job_factory_default(user, hub):
-    cfg = Config()
-    cfg.NomadSpawner.base_job_name = "jupyter-notebook"
-    cfg.NomadSpawner.service_provider = "consul"
-
-    # slim down env vars to avoid test pollution by the host config
-    cfg.NomadSpawner.env_keep = [
-        "LANG",
-        "LC_ALL",
-        "JUPYTERHUB_SINGLEUSER_APP",
-    ]
-
-    spawner = NomadSpawner(user=user, hub=hub, config=cfg)
+async def test_job_factory_default(user, hub, config):
+    spawner = NomadSpawner(user=user, hub=hub, config=config)
 
     user_options = {
         "datacenters": ["dc1", "dc2"],
@@ -117,19 +121,8 @@ class PreConfiguredNomadSpawner(NomadSpawner):
 
 
 @pytest.mark.asyncio
-async def test_spawner_job_factory(user, hub):
-    cfg = Config()
-    cfg.NomadSpawner.base_job_name = "jupyter-notebook"
-    cfg.NomadSpawner.service_provider = "consul"
-
-    # slim down env vars to avoid test pollution by the host config
-    cfg.NomadSpawner.env_keep = [
-        "LANG",
-        "LC_ALL",
-        "JUPYTERHUB_SINGLEUSER_APP",
-    ]
-
-    spawner = PreConfiguredNomadSpawner(user=user, hub=hub, config=cfg)
+async def test_spawner_job_factory(user, hub, config):
+    spawner = PreConfiguredNomadSpawner(user=user, hub=hub, config=config)
 
     # is generated in the spawners start method
     spawner.notebook_id = "123"
