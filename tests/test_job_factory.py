@@ -243,9 +243,11 @@ def test_name_rendering_default(user, hub, config):
 
     assert spawner._render_name_template() == "jupyterhub-notebook-123"
 
+
 # easier than patching or creating an orm spawner
 class NamedSpawner(NomadSpawner):
     name: str = "testing-server"
+
 
 def test_name_rendering_with_custom_template(user, hub, config):
     config.NomadSpawner.name_template = "{{username}}-{{servername}}"
@@ -260,15 +262,14 @@ def test_name_rendering_with_custom_template(user, hub, config):
 def test_name_rendering_to_long(user, hub, config):
     config.NomadSpawner.name_template = "{{prefix}}-{{username}}-{{servername}}-{{notebookid}}-add-some-other-characters-to-break-the-limit"
 
-
     spawner = NamedSpawner(user=user, hub=hub, config=config)
 
     spawner.notebook_id = "123"
 
     assert spawner._render_name_template() == "jupyter-notebook-123"
 
+
 def test_name_rendering_not_rfc(user, hub, config):
-    
     # it does not matter where the invalid character comes from
     config.NomadSpawner.name_template = "{{prefix}}@{{username}}"
 
@@ -277,5 +278,3 @@ def test_name_rendering_not_rfc(user, hub, config):
     spawner.notebook_id = "123"
 
     assert spawner._render_name_template() == "jupyter-notebook-123"
-
-
