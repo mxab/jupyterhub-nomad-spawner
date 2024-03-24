@@ -1,11 +1,11 @@
 # Nomad Jupyter Spawner
 
-> **Warning**
+> [!WARNING]
 > This project is currently in beta
 
-Spawns a Jupyter Notebook via Jupyterhub.
+A Jupyterhub plugin to spawn single-user notebook servers via [Nomad](https://www.nomadproject.io/). The project provides templates to allow users to influence how their servers are spawned (see the [showcase](#-show-case) and [recipes](#-recipes) for more details.).
 
-Users can select and image, resource and connect it with volumes (csi / host)
+After login users can select and image, resource and connect it with volumes (csi / host)
 
 ```sh
 pip install jupyterhub-nomad-spawner
@@ -22,7 +22,7 @@ TODOs:
 
 ## Usage
 
-### Config
+### Jupyterhub Configuration
 
 ```python
 
@@ -186,6 +186,69 @@ c.NomadSpawner.csi_volume_parameters = csi_volume_parameters
 
 
 ```
+
+## Recipes
+
+By default the `jupyterhub-nomad-spawner` allows users to customize the notebook servers image, the datacenters to spawn in, as well as the memory and volume type for the allocation. While these options are sufficient in most cases, `jupyterhub` operators may wish to customize the spawner's behavior and/or restrict the notebook users customization.
+
+- disabling user options
+
+  ```python
+  # skips the options dialogue
+  c.NomadSpawner.options_form = ""
+  ```
+
+- using a custom job spec
+
+  ```python
+  # must be available to your hub server
+  c.NomadSpawner.job_template_path = "/etc/jupyterhub/custom-job-template.hcl.j2"
+
+  ```
+
+- using a pre-configured job factory
+
+  ```python
+  from jupyterhub_nomad_spawner.spawner import NomadSpawner
+  from jupyterhub_nomad_spawner.job_factory import (
+    JobData,
+    create_job,
+    )
+
+
+  class CustomNomadSpawner(NomadSpawner):
+    async def job_factory(self, _) -> str:
+        return create_job(
+            job_data=JobData(
+                job_name=self.job_name,
+                username=self.user.name,
+                notebook_name=self.name,
+                service_provider=self.service_provider,
+                service_name=self.service_name,
+                env=self.get_env(),
+                args=self.get_args(),
+                image="jupyter/minimal-notebook",
+                datacenters=["dc1", "dc2"],
+                cpu=500,
+                memory=512,
+            ),
+            job_template_path=self.job_template_path,
+        )
+
+    c.JupyterHub.spawner_class = CustomNomadSpawner
+  ```
+
+- customizing server naming
+
+  ```python
+  c.NomadSpawner.base_job_name = "jupyter"   # used as prefix
+  c.NomadSpawner.name_template = "{{prefix}}-{{username}}"
+  ```
+
+> [!NOTE]
+> Please be aware that if you have enabled named servers, the template should contain the {{notebookid}}.
+
+###
 
 ## Development
 
