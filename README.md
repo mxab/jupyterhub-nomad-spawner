@@ -191,13 +191,6 @@ c.NomadSpawner.csi_volume_parameters = csi_volume_parameters
 
 By default the `jupyterhub-nomad-spawner` allows users to customize the notebook servers image, the datacenters to spawn in, as well as the memory and volume type for the allocation. While these options are sufficient in most cases, `jupyterhub` operators may wish to customize the spawner's behavior and/or restrict the notebook users customization.
 
-- disabling user options
-
-  ```python
-  # skips the options dialogue
-  c.NomadSpawner.options_form = ""
-  ```
-
 - using a custom job spec
 
   ```python
@@ -206,7 +199,15 @@ By default the `jupyterhub-nomad-spawner` allows users to customize the notebook
 
   ```
 
-- using a pre-configured job factory
+- disabling user options
+
+  ```python
+  # skips the options dialogue, which is used to populate `NomadSpawner.user_options`
+  # therefore you would also have to overwrite the default `job_factory``
+  c.NomadSpawner.options_form = ""
+  ```
+
+- using a custom job factory
 
   ```python
   from jupyterhub_nomad_spawner.spawner import NomadSpawner
