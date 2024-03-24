@@ -10,7 +10,7 @@ from jupyterhub_nomad_spawner.nomad.nomad_service import NomadService
 @pytest.mark.asyncio
 async def test_register_volume(respx_mock):
     respx_mock.put(
-        "/v1/volume/csi/volume123",
+        "/v1/volume/csi/volume123/create",
         json={
             "Volumes": [
                 {
@@ -20,6 +20,12 @@ async def test_register_volume(respx_mock):
                     "ExternalID": "volume123",
                     "Name": "volume123",
                     "PluginID": "csi_plugin_1",
+                    "RequestedCapabilities": [
+                        {
+                            "AccessMode": "single-node-writer",
+                            "AttachmentMode": "file-system",
+                        }
+                    ],
                 }
             ]
         },
