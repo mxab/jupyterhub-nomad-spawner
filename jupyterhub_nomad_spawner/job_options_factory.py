@@ -8,7 +8,6 @@ def create_form(
     csi_plugin_ids: Optional[List[str]],
     memory_limit: Optional[int] = None,
 ) -> str:
-
     env = Environment(
         loader=PackageLoader("jupyterhub_nomad_spawner"), autoescape=select_autoescape()
     )

@@ -1,6 +1,6 @@
 import os
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from jinja2 import (
     BaseLoader,
@@ -77,3 +77,10 @@ def create_job(job_data: JobData, job_template_path: Optional[str] = None) -> st
     job_hcl = template.render(**job_data.dict())
 
     return job_hcl
+
+
+def create_job_name(jinja_template: str, data: dict[str, Any]) -> str:
+    env = Environment(autoescape=select_autoescape())
+    template = env.from_string(jinja_template)
+
+    return template.render(**data)

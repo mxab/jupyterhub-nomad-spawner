@@ -1,10 +1,11 @@
 import asyncio
 import hashlib
 import os
+import re
 import ssl
 import typing as t
 from typing import Dict, Optional, Tuple, Union
-
+from textwrap import dedent
 from httpx import AsyncClient
 from jupyterhub.spawner import Spawner
 from pydantic import BaseModel
@@ -24,13 +25,20 @@ from jupyterhub_nomad_spawner.consul.consul_service import (
     ConsulServiceConfig,
     ConsulTLSConfig,
 )
-from jupyterhub_nomad_spawner.job_factory import JobData, JobVolumeData, create_job
+from jupyterhub_nomad_spawner.job_factory import (
+    JobData,
+    JobVolumeData,
+    create_job,
+    create_job_name,
+)
 from jupyterhub_nomad_spawner.job_options_factory import create_form
 from jupyterhub_nomad_spawner.nomad.nomad_service import (
     NomadService,
     NomadServiceConfig,
     NomadTLSConfig,
 )
+
+RFC_1123_2_1_NAME_PATTERN = re.compile("^[a-z0-9\-]+$")
 
 
 class CreateJobResponse(BaseModel):
@@ -253,7 +261,7 @@ class NomadSpawner(Spawner):
 
     base_job_name = Unicode(
         help="""
-        The base name of the job. Will be concated with -<notebook_id>
+        The base name of the job. Used as prefix with the name_template
         """
     ).tag(config=True)
 
@@ -261,10 +269,22 @@ class NomadSpawner(Spawner):
     def _default_base_job_name(self):
         return "jupyterhub-notebook"
 
+    auto_remove_jobs = Bool(
+        help="""
+        Specifies whether the job should be stopped and removed immediately (`auto_remove_jobs=True`) or 
+        deferred to the Nomad garbage collector (`auto_remove_jobs=False`).
+        Defaults to False.
+        """
+    ).tag(config=True)
+
+    @default("auto_remove_jobs")
+    def _default_auto_remove_jobs(self):
+        return False
+
     @property
     def job_name(self) -> str:
         if self.notebook_id:
-            return f"{self.base_job_name}-{self.notebook_id}"
+            return self._render_name_template()
         raise ValueError("notebook_id is not set")
 
     base_csi_volume_name = Unicode(
@@ -352,62 +372,103 @@ class NomadSpawner(Spawner):
     """
     ).tag(config=True)
 
+    name_template = Unicode(
+        config=True,
+        help=dedent(
+            """
+            Name of the container or service: with {{prefix}}, {{username}}, {{servername}} and {{notebookid}} replacements.
+            It is important to include {{servername}} if JupyterHub's "named
+            servers" are enabled (``JupyterHub.allow_named_servers = True``).
+            The default name_template is "{{prefix}}-{{notebookid}}". 
+            """
+        ),
+    )
+
+    @default("name_template")
+    def _default_name_template(self):
+        return "{{prefix}}-{{notebookid}}"
+
+    def _render_name_template(self):
+        data = {
+            "prefix": self.base_job_name,
+            "username": self.user.name,
+            "servername": self.name,
+            "notebookid": self.notebook_id,
+        }
+        job_name = create_job_name(self.name_template, data=data)
+
+        job_name_default = create_job_name(self._default_name_template(), data=data)
+
+        if len(job_name) >= 64:
+            # character limit of nomad
+            message = f"Job name exceeds character limit of 63 characters. Fallback to default template for {job_name=} with {job_name_default=}"
+        elif not re.match(pattern=RFC_1123_2_1_NAME_PATTERN, string=job_name):
+            # does not match required pattern
+            message = f"Job name does not match required pattern ^[a-z0-9\-]+$. Fallback to default template for {job_name=} with {job_name_default=}"
+        else:
+            # name matches requirements
+            return job_name
+
+        self.log.warning(message)
+
+        return job_name_default
+
+    async def job_factory(self, nomad_service) -> str:
+        """Factory for the nomad jobs to spawn.
+
+        To customize this factory overwrite this method with your own logic.
+        """
+        volume_data: Optional[JobVolumeData] = None
+
+        if self.user_options.get("volume_type", None):
+            volume_data = await self.create_job_volume_data(nomad_service)
+
+        policies: TList[str] = []
+        if callable(self.vault_policies):
+            policies = self.vault_policies(self)
+        elif self.vault_policies:
+            policies = self.vault_policies
+
+        job_hcl = create_job(
+            job_data=JobData(
+                job_name=self.job_name,
+                username=self.user.name,
+                notebook_name=self.name,
+                service_provider=self.service_provider,
+                service_name=self.service_name,
+                env=self.get_env(),
+                args=self.get_args(),
+                image=self.user_options["image"],
+                datacenters=self.user_options["datacenters"],
+                memory=self.user_options["memory"],
+                volume_data=volume_data,
+                policies=policies,
+            ),
+            job_template_path=self.job_template_path,
+        )
+
+        return job_hcl
+
     async def start(self):
         nomad_service_config = build_nomad_config_from_options(self)
         nomad_httpx_client = build_nomad_httpx_client(nomad_service_config)
         nomad_service = NomadService(client=nomad_httpx_client, log=self.log)
-
-        consul_service_config = build_consul_config_from_options(self)
-        consul_httpx_client = build_consul_httpx_client(consul_service_config)
-        consul_service = ConsulService(client=consul_httpx_client, log=self.log)
 
         try:
             notebook_id: str = hashlib.sha1(
                 f"{self.user.name}:{self.name}".encode("utf-8")
             ).hexdigest()[:10]
             self.notebook_id = notebook_id
+
             self.log.info("server name: %s", self.name)
-            env = self.get_env()
-            args = self.get_args()
 
-            volume_data: Optional[JobVolumeData] = None
-
-            if self.user_options.get("volume_type", None):
-                volume_data = await self.create_job_volume_data(nomad_service)
-
-            policies: TList[str] = []
-            if callable(self.vault_policies):
-                policies = self.vault_policies(self)
-            elif self.vault_policies:
-                policies = self.vault_policies
+            job_hcl = await self.job_factory(nomad_service)
 
             self.log.info("scheduling job %s", self.job_name)
-            job_hcl = create_job(
-                job_data=JobData(
-                    job_name=self.job_name,
-                    username=self.user.name,
-                    notebook_name=self.name,
-                    service_provider=self.service_provider,
-                    service_name=self.service_name,
-                    env=env,
-                    args=args,
-                    image=self.user_options["image"],
-                    datacenters=self.user_options["datacenters"],
-                    memory=self.user_options["memory"],
-                    volume_data=volume_data,
-                    policies=policies,
-                ),
-                job_template_path=self.job_template_path,
-            )
-
             await nomad_service.schedule_job(job_hcl)
             await self._ensure_running(nomad_service=nomad_service)
-            if self.service_provider == "consul":
-                service_data = await self.address_and_port_from_consul(consul_service)
-            elif self.service_provider == "nomad":
-                service_data = await self.address_and_port_from_nomad(nomad_service)
-            else:
-                raise ValueError("Unknown service provider")
+
+            service_data = await self.fetch_from_service_provider(nomad_service)
         except Exception as e:
             self.log.exception("Failed to start")
             raise e
@@ -415,9 +476,27 @@ class NomadSpawner(Spawner):
         finally:
             if nomad_httpx_client is not None:
                 await nomad_httpx_client.aclose()
-            if consul_httpx_client is not None:
-                await consul_httpx_client.aclose()
         return service_data
+
+    async def fetch_from_service_provider(self, nomad_service) -> Tuple[str, int]:
+        """Helper to fetch spawned server's IP and port from the service provider (nomad/consul).
+
+        This method is called from `start`, after the server is running.
+        If your setup differs, you may wish to overwrite it with some custom logic.
+        """
+        if self.service_provider == "nomad":
+            return await self.address_and_port_from_nomad(nomad_service)
+
+        elif self.service_provider == "consul":
+            consul_service_config = build_consul_config_from_options(self)
+            async with build_consul_httpx_client(
+                consul_service_config
+            ) as consul_httpx_client:
+                consul_service = ConsulService(client=consul_httpx_client, log=self.log)
+
+                return await self.address_and_port_from_consul(consul_service)
+        else:
+            raise ValueError("Unknown service provider")
 
     async def create_job_volume_data(self, nomad_service: NomadService):
         volume_type = self.user_options["volume_type"]
@@ -496,6 +575,18 @@ class NomadSpawner(Spawner):
         self.log.info("Getting service %s from nomad", self.service_name)
         return await nomad_service.get_service_address(self.job_name)
 
+    @retry(wait=wait_fixed(3), stop=stop_after_attempt(5))
+    async def address_and_port_of_consul_service_from_nomad(
+        self, nomad_service: NomadService
+    ) -> Tuple[str, int]:
+        self.log.info("Getting allocation id of %s from nomad", self.service_name)
+        allocations = await nomad_service.job_allocations(self.job_name)
+
+        # there should only be one allocation
+        return await nomad_service.get_service_of_allocation(
+            allocation_id=allocations[0]["ID"]
+        )
+
     async def poll(self):
         nomad_httpx_client = build_nomad_httpx_client(
             build_nomad_config_from_options(self)
@@ -525,7 +616,7 @@ class NomadSpawner(Spawner):
         nomad_service = NomadService(client=nomad_httpx_client, log=self.log)
 
         try:
-            await nomad_service.delete_job(self.job_name)
+            await nomad_service.delete_job(self.job_name, purge=self.auto_remove_jobs)
             self.clear_state()
         except Exception:
             self.log.exception("Failed to stop")
@@ -551,10 +642,8 @@ class NomadSpawner(Spawner):
         super().clear_state()
         self.notebook_id = None
 
-    @property
-    def options_form(self) -> str:
-        """return the options for the form"""
-
+    @default("options_form")
+    def _default_options_form(self):
         return create_form(
             datacenters=self.datacenters,
             common_images=self.common_images,
@@ -566,15 +655,15 @@ class NomadSpawner(Spawner):
     def memory_limit_in_mb(self) -> Optional[int]:
         return self.mem_limit / (1024 * 1024) if self.mem_limit else None
 
-    def options_from_form(self, formdata):
+    def _default_options_from_form(self, form_data):
         options = {}
-        options["image"] = formdata["image"][0]
-        options["datacenters"] = formdata["datacenters"]
-        options["memory"] = int(formdata["memory"][0])
-        options["volume_type"] = formdata["volume_type"][0]
-        options["volume_source"] = formdata.get("volume_source", [None])[0]
-        options["volume_destination"] = formdata.get("volume_destination", [None])[0]
-        options["volume_csi_plugin_id"] = formdata.get("volume_csi_plugin_id", [None])[
+        options["image"] = form_data["image"][0]
+        options["datacenters"] = form_data["datacenters"]
+        options["memory"] = int(form_data["memory"][0])
+        options["volume_type"] = form_data["volume_type"][0]
+        options["volume_source"] = form_data.get("volume_source", [None])[0]
+        options["volume_destination"] = form_data.get("volume_destination", [None])[0]
+        options["volume_csi_plugin_id"] = form_data.get("volume_csi_plugin_id", [None])[
             0
         ]
 

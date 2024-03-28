@@ -1,6 +1,6 @@
 from logging import Logger, LoggerAdapter
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union, Any
 
 from attrs import define
 from httpx import AsyncClient
@@ -126,8 +126,17 @@ class NomadService:
         job_detail = response.json()
         return job_detail.get("Status", "")
 
-    async def delete_job(self, job_id: str):
-        response = await self.client.delete(f"/v1/job/{job_id}")
+    async def job_allocations(self, job_id) -> list[dict[str, Any]]:
+        response = await self.client.get(f"/v1/job/{job_id}/allocations")
+        if response.is_error:
+            raise NomadException(f"Error getting job allocations: {response.text}")
+
+        allocations = response.json()
+        return allocations
+
+    async def delete_job(self, job_id: str, purge: Optional[bool] = None):
+        params = {"purge": purge} if purge else None
+        response = await self.client.delete(f"/v1/job/{job_id}", params=params)
         if response.is_error:
             raise NomadException(f"Error deleting job: {response.text}")
 
@@ -142,3 +151,15 @@ class NomadService:
         if len(services) > 1:
             raise NomadException(f"Multiple services found for {service_name}")
         return str(services[0]["Address"]), int(services[0]["Port"])
+
+    async def get_service_of_allocation(self, allocation_id: str) -> Tuple[str, int]:
+        response = await self.client.get(f"/v1/allocation/{allocation_id}")
+        if response.is_error:
+            raise NomadException(f"Error reading allocation: {response.text}")
+
+        allocation = response.json()
+
+        networks = allocation["Resources"]["Networks"]
+        host_port = networks[0]["DynamicPorts"][0]["Value"]
+
+        return str(networks[0]["IP"]), int(host_port)

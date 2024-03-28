@@ -54,6 +54,10 @@ exclude = [
 [tool.isort]
 profile = "black"
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: Run the integration tests."
+]
 
 [tool.poetry-dynamic-versioning]
 enable = true
