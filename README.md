@@ -5,7 +5,7 @@
 
 A Jupyterhub plugin to spawn single-user notebook servers via [Nomad](https://www.nomadproject.io/). The project provides templates to allow users to influence how their servers are spawned (see the [showcase](#-show-case) and [recipes](#-recipes) for more details.).
 
-After login users can select and image, resource and connect it with volumes (csi / host)
+After login users can select an image, resources and connect it with volumes (csi / host)
 
 ```sh
 pip install jupyterhub-nomad-spawner
