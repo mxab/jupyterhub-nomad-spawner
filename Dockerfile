@@ -14,7 +14,7 @@ RUN touch /opt/jupyterhub-nomad-spawner/jupyterhub_nomad_spawner/__init__.py /op
 
 
 WORKDIR /opt/jupyterhub-nomad-spawner
-RUN --mount=type=cache,target=/root/.cache/pypoetry --mount=type=cache,target=/root/.cache/pip poetry install --no-dev -n -vv
+RUN --mount=type=cache,target=/root/.cache/pypoetry --mount=type=cache,target=/root/.cache/pip poetry install --only main -n -vv
 COPY jupyterhub_nomad_spawner /opt/jupyterhub-nomad-spawner/jupyterhub_nomad_spawner
 COPY README.md  /opt/jupyterhub-nomad-spawner/
 
