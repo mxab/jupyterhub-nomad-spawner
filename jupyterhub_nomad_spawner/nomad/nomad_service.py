@@ -11,6 +11,7 @@ from jupyterhub_nomad_spawner.nomad.nomad_model import (
     CSIVolumeCapability,
     CSIVolumeCreateRequest,
     JobsParseRequest,
+    TaskState,
 )
 
 
@@ -125,6 +126,43 @@ class NomadService:
 
         job_detail = response.json()
         return job_detail.get("Status", "")
+    
+    async def task_status(self, job_name: str) -> str:
+        """Get detailed task status from most recent allocation"""
+        allocs = await self.client.get(f"/v1/job/{job_name}/allocations")
+        if not allocs:
+            return "pending"
+
+        allocs = allocs.json()
+        latest_alloc = max(allocs, key=lambda x: x["CreateTime"])
+        if not latest_alloc:
+            return "pending"
+        
+        task_states = latest_alloc.get("TaskStates", {}) or {}
+        task_states = {name: TaskState(**state) for name, state in task_states.items()}
+        
+        if not task_states:
+            return "pending"
+
+        for task in task_states.values():
+            if task.State == "dead" and task.Failed:
+                return "dead"
+            if task.State != "running":
+                return self._get_task_state_from_event(task)
+
+        return "running"
+    
+    def _get_task_state_from_event(self, task: TaskState) -> str:
+        """Determine task state from latest event"""
+        events = task.Events
+        if not events:
+            return "pending"
+        
+        latest_event = events[-1]
+        if latest_event.Type in ["Driver", "Task Setup"]:
+            return "starting"
+        return "pending"
+
 
     async def job_allocations(self, job_id) -> list[dict[str, Any]]:
         response = await self.client.get(f"/v1/job/{job_id}/allocations")
