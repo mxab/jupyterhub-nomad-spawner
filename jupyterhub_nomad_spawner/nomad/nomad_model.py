@@ -1571,6 +1571,20 @@ class AllocatedResources(BaseModel):
     Shared: Optional[AllocatedSharedResources] = None
     Tasks: Optional[Dict[str, AllocatedTaskResources]] = None
 
+class TaskEvent(BaseModel):
+    Type: str
+    Time: int
+    DisplayMessage: str
+    Details: Dict[str, Any]
+    FailsTask: bool
+    DriverMessage: str
+
+class TaskState(BaseModel):
+    State: str
+    Failed: bool
+    StartedAt: Optional[str]
+    FinishedAt: Optional[str]
+    Events: List[TaskEvent]
 
 class AllocationListStub(BaseModel):
     AllocatedResources: Optional[AllocatedResources] = None

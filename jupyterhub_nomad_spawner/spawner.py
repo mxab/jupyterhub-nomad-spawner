@@ -544,16 +544,24 @@ class NomadSpawner(Spawner):
     async def _ensure_running(self, nomad_service: NomadService):
         while True:
             try:
-                status = await nomad_service.job_status(self.job_name)
-            except Exception:
-                self.log.exception("Failed to get job status")
-            if status == "running":
-                break
-            elif status == "dead":
-                raise Exception(f"Job (name={self.job_name}) is dead already")
-            else:
-                self.log.info("Waiting for %s...", self.job_name)
-                await asyncio.sleep(5)
+                job_status = await nomad_service.job_status(self.job_name)
+                if job_status == "dead":
+                    raise Exception(f"Job (name={self.job_name}) is dead")
+                elif job_status == "running":
+                    task_status = await nomad_service.task_status(self.job_name)
+                    if task_status == "running":
+                        break
+                    elif task_status == "dead":
+                        raise Exception(f"Task for job (name={self.job_name}) is dead")
+                    else:
+                        self.log.info("Task for %s is %s, waiting...", self.job_name, task_status)
+                else:
+                    self.log.info("Job %s is %s, waiting...", self.job_name, job_status)
+            except Exception as e:
+                self.log.exception("Failed to get job/task status")
+                raise e
+            
+            await asyncio.sleep(5)
 
     @retry(wait=wait_fixed(3), stop=stop_after_attempt(5))
     async def address_and_port_from_consul(
