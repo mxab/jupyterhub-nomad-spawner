@@ -1,6 +1,6 @@
 from logging import Logger, LoggerAdapter
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union, Any
+from typing import Any, Dict, Optional, Tuple, Union
 
 from attrs import define
 from httpx import AsyncClient
@@ -74,7 +74,10 @@ class NomadService:
             json=create_volume_json,
         )
         if result.is_error:
-            if 'ErrorCode: "AccessPointAlreadyExists"' not in result.text:
+            if (
+                'ErrorCode: "AccessPointAlreadyExists"' not in result.text
+                and "volume external ID cannot be updated" not in result.text
+            ):
                 raise NomadException(
                     "Error registering volume."
                     + f" status code: {result.status_code}, content: {result.text}"
@@ -126,7 +129,7 @@ class NomadService:
 
         job_detail = response.json()
         return job_detail.get("Status", "")
-    
+
     async def task_status(self, job_name: str) -> str:
         """Get detailed task status from most recent allocation"""
         allocs = await self.client.get(f"/v1/job/{job_name}/allocations")
@@ -137,10 +140,10 @@ class NomadService:
         latest_alloc = max(allocs, key=lambda x: x["CreateTime"])
         if not latest_alloc:
             return "pending"
-        
+
         task_states = latest_alloc.get("TaskStates", {}) or {}
         task_states = {name: TaskState(**state) for name, state in task_states.items()}
-        
+
         if not task_states:
             return "pending"
 
@@ -151,18 +154,17 @@ class NomadService:
                 return self._get_task_state_from_event(task)
 
         return "running"
-    
+
     def _get_task_state_from_event(self, task: TaskState) -> str:
         """Determine task state from latest event"""
         events = task.Events
         if not events:
             return "pending"
-        
+
         latest_event = events[-1]
         if latest_event.Type in ["Driver", "Task Setup"]:
             return "starting"
         return "pending"
-
 
     async def job_allocations(self, job_id) -> list[dict[str, Any]]:
         response = await self.client.get(f"/v1/job/{job_id}/allocations")
